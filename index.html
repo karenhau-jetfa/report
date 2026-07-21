@@ -286,13 +286,27 @@ function fmt(n){return Math.round(n).toLocaleString("es-PA");}
 function fmtK(n){return n>=1000000?"$"+(n/1000000).toFixed(1)+"M":n>=1000?"$"+(n/1000).toFixed(0)+"k":"$"+Math.round(n);}
 function sl(n){return n.length>30?n.substring(0,28)+"\u2026":n;}
 let charts={};
-function destroyAll(){Object.values(charts).forEach(c=>{try{c.destroy();}catch(e){}});charts={};}
-function rc(id){const o=document.getElementById(id),p=o.parentNode,n=document.createElement("canvas");n.id=id;p.replaceChild(n,o);}
+// Reutiliza la instancia viva de Chart.js para que los datos transicionen en vez de parpadear.
+// Solo recrea si el canvas es nuevo o cambio el tipo de grafica.
+function upsert(key,id,cfg){
+  const el=document.getElementById(id);if(!el)return null;
+  const c=charts[key];
+  if(!c||c.config.type!==cfg.type||c.canvas!==el){
+    if(c){try{c.destroy();}catch(e){}}
+    return charts[key]=new Chart(el,cfg);
+  }
+  c.data.labels=cfg.data.labels;
+  const nd=cfg.data.datasets;
+  c.data.datasets.length=nd.length;
+  nd.forEach((ds,i)=>{c.data.datasets[i]=Object.assign(c.data.datasets[i]||{},ds);});
+  c.config.options=cfg.options;
+  c.update();
+  return c;
+}
 function ce(id){const el=document.getElementById(id);if(el)el.innerHTML="";}
 
 function renderAll(yr){
   const d=ALL_DATA[String(yr)];if(!d)return;
-  destroyAll();
   const isPartial=!!d.partial;
   const partialLabel=d.partial_label||"parcial";
   document.getElementById("report-title").textContent="Mercado de Neum\u00e1ticos en Panam\u00e1 "+yr+(isPartial?" ("+partialLabel+")":"");
@@ -315,8 +329,7 @@ function renderAll(yr){
   const pieColors=[...top15.map(r=>getColor(r[0])),"#d3d1c7"];
   const legPie=document.getElementById("legend-pie");
   top15.forEach((r,i)=>{const el=document.createElement("span");el.className="legend-item";el.innerHTML=`<span class="legend-swatch" style="background:${pieColors[i]}"></span>${sl(r[0])} ${(r[1]/total*100).toFixed(1)}%`;legPie.appendChild(el);});
-  rc("pieChart");
-  charts.pie=new Chart(document.getElementById("pieChart"),{type:"doughnut",data:{labels:pieLabels,datasets:[{data:pieQty,backgroundColor:pieColors,borderWidth:2,borderColor:"#fff"}]},options:{responsive:true,maintainAspectRatio:false,cutout:"55%",plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${fmt(ctx.parsed)} uds (${(ctx.parsed/total*100).toFixed(1)}%)`}}}}});
+    upsert("pie","pieChart",{type:"doughnut",data:{labels:pieLabels,datasets:[{data:pieQty,backgroundColor:pieColors,borderWidth:2,borderColor:"#fff"}]},options:{responsive:true,maintainAspectRatio:false,cutout:"55%",plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${fmt(ctx.parsed)} uds (${(ctx.parsed/total*100).toFixed(1)}%)`}}}}});
   const top3Share=((d.top_imp[0][1]+(d.top_imp[1]||[0,0])[1]+(d.top_imp[2]||[0,0])[1])/total*100).toFixed(1);
   document.getElementById("insight-pie").innerHTML=`<strong>Distribuidora Ling Long ocupa el #${d.ll_rank} del mercado</strong> con ${fmt(llQty)} unidades (${share}%). Los tres primeros importadores acaparan el <strong>${top3Share}% del mercado total</strong>.`;
 
@@ -330,8 +343,7 @@ function renderAll(yr){
   const lineEntries=top10.map(name=>[name,d.monthly_top10[name]||Array(12).fill(0)]);
   const legLine=document.getElementById("legend-line");
   lineEntries.forEach(([name])=>{const el=document.createElement("span");el.className="legend-item";el.innerHTML=`<span class="legend-swatch" style="background:${getColor(name)}"></span>${sl(name)}`;legLine.appendChild(el);});
-  rc("lineChart");
-  charts.line=new Chart(document.getElementById("lineChart"),{type:"line",data:{labels:MONTHS,datasets:lineEntries.map(([name,vals])=>{const c=getColor(name);return{label:name,data:vals,borderColor:c,backgroundColor:c+"18",borderWidth:isLL(name)?3:1.8,pointRadius:isLL(name)?5:3,tension:0.35,fill:false};})},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},plugins:{legend:{display:false},tooltip:{itemSort:(a,b)=>b.parsed.y-a.parsed.y,callbacks:{label:ctx=>` ${ctx.dataset.label}: ${fmt(ctx.parsed.y)} uds`}}},scales:{x:{grid:{display:false},ticks:{color:"#888780",font:{size:11}}},y:{grid:{color:"#e1e0d9"},ticks:{color:"#888780",font:{size:11},callback:v=>(v/1000).toFixed(0)+"k"}}}}});
+    upsert("line","lineChart",{type:"line",data:{labels:MONTHS,datasets:lineEntries.map(([name,vals])=>{const c=getColor(name);return{label:name,data:vals,borderColor:c,backgroundColor:c+"18",borderWidth:isLL(name)?3:1.8,pointRadius:isLL(name)?5:3,tension:0.35,fill:false};})},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},plugins:{legend:{display:false},tooltip:{itemSort:(a,b)=>b.parsed.y-a.parsed.y,callbacks:{label:ctx=>` ${ctx.dataset.label}: ${fmt(ctx.parsed.y)} uds`}}},scales:{x:{grid:{display:false},ticks:{color:"#888780",font:{size:11}}},y:{grid:{color:"#e1e0d9"},ticks:{color:"#888780",font:{size:11},callback:v=>(v/1000).toFixed(0)+"k"}}}}});
   const sortedLines=lineEntries.map(([name,vals])=>({name,vals,total:vals.reduce((a,b)=>a+b,0)})).sort((a,b)=>b.total-a.total);
   const mTbody=document.getElementById("monthly-tbody");
   sortedLines.forEach((row,rank)=>{const ll=/ling.?long/i.test(row.name),tr=document.createElement("tr");if(ll)tr.className="ling-long";const cells=row.vals.map(v=>`<td style="text-align:right;font-variant-numeric:tabular-nums;font-size:11px">${v>0?fmt(v):"\u2014"}</td>`).join("");tr.innerHTML=`<td style="color:#888780;font-size:11px">${rank+1}</td><td style="font-size:11px"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${getColor(row.name)};margin-right:5px;vertical-align:middle"></span>${row.name}${ll?" &#9733;":""}</td>${cells}<td style="text-align:right;font-weight:700;font-size:11px">${fmt(row.total)}</td>`;mTbody.appendChild(tr);});
@@ -340,14 +352,12 @@ function renderAll(yr){
   ce("exp-tbody");
   const topExp=(d.top_exp||[]).slice(0,20);
   topExp.forEach((r,i)=>{const tr=document.createElement("tr");tr.innerHTML=`<td style="color:#888780">${i+1}</td><td>${r[0]}</td><td style="text-align:right;font-variant-numeric:tabular-nums">${fmt(r[1])}</td>`;document.getElementById("exp-tbody").appendChild(tr);});
-  rc("barChart");
-  charts.bar=new Chart(document.getElementById("barChart"),{type:"bar",data:{labels:topExp.map(r=>r[0]),datasets:[{label:"Unidades",data:topExp.map(r=>r[1]),backgroundColor:topExp.map((_,i)=>i<2?"#2a78d6":i<4?"#3987e5":"#85b7eb"),borderWidth:0,borderRadius:{topRight:4,bottomRight:4},borderSkipped:"left"}]},options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${fmt(ctx.parsed.x)} unidades`}}},scales:{x:{grid:{color:"#e1e0d9"},ticks:{color:"#888780",font:{size:11},callback:v=>(v/1000).toFixed(0)+"k"}},y:{grid:{display:false},ticks:{color:"#52514e",font:{size:11}}}}}});
+    upsert("bar","barChart",{type:"bar",data:{labels:topExp.map(r=>r[0]),datasets:[{label:"Unidades",data:topExp.map(r=>r[1]),backgroundColor:topExp.map((_,i)=>i<2?"#2a78d6":i<4?"#3987e5":"#85b7eb"),borderWidth:0,borderRadius:{topRight:4,bottomRight:4},borderSkipped:"left"}]},options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${fmt(ctx.parsed.x)} unidades`}}},scales:{x:{grid:{color:"#e1e0d9"},ticks:{color:"#888780",font:{size:11},callback:v=>(v/1000).toFixed(0)+"k"}},y:{grid:{display:false},ticks:{color:"#52514e",font:{size:11}}}}}});
 
   // Monthly price
   const mktQty=d.monthly_mkt_qty||Array(12).fill(0),mktCif=d.monthly_mkt_cif||Array(12).fill(0);
   const llMonQty=d.monthly_ll_qty||Array(12).fill(0),llMonCif=d.monthly_ll_cif||Array(12).fill(0);
-  rc("priceMonthChart");
-  charts.price=new Chart(document.getElementById("priceMonthChart"),{type:"line",data:{labels:MONTHS,datasets:[{label:"Mercado total",data:mktQty.map((q,i)=>q>0?+(mktCif[i]/q).toFixed(2):null),borderColor:"#888780",backgroundColor:"#88878018",borderWidth:2,pointRadius:3,tension:0.35,fill:false,spanGaps:true},{label:"Ling Long",data:llMonQty.map((q,i)=>q>0?+(llMonCif[i]/q).toFixed(2):null),borderColor:"#2a78d6",backgroundColor:"#2a78d618",borderWidth:3,pointRadius:5,tension:0.35,fill:false,spanGaps:true}]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},plugins:{legend:{display:true,position:"top",labels:{usePointStyle:true,font:{size:11}}},tooltip:{callbacks:{label:ctx=>ctx.parsed.y!=null?` ${ctx.dataset.label}: $${ctx.parsed.y.toFixed(2)}/ud`:""}}},scales:{x:{grid:{display:false},ticks:{color:"#888780",font:{size:11}}},y:{grid:{color:"#e1e0d9"},ticks:{color:"#888780",font:{size:11},callback:v=>"$"+v}}}}});
+    upsert("price","priceMonthChart",{type:"line",data:{labels:MONTHS,datasets:[{label:"Mercado total",data:mktQty.map((q,i)=>q>0?+(mktCif[i]/q).toFixed(2):null),borderColor:"#888780",backgroundColor:"#88878018",borderWidth:2,pointRadius:3,tension:0.35,fill:false,spanGaps:true},{label:"Ling Long",data:llMonQty.map((q,i)=>q>0?+(llMonCif[i]/q).toFixed(2):null),borderColor:"#2a78d6",backgroundColor:"#2a78d618",borderWidth:3,pointRadius:5,tension:0.35,fill:false,spanGaps:true}]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},plugins:{legend:{display:true,position:"top",labels:{usePointStyle:true,font:{size:11}}},tooltip:{callbacks:{label:ctx=>ctx.parsed.y!=null?` ${ctx.dataset.label}: $${ctx.parsed.y.toFixed(2)}/ud`:""}}},scales:{x:{grid:{display:false},ticks:{color:"#888780",font:{size:11}}},y:{grid:{color:"#e1e0d9"},ticks:{color:"#888780",font:{size:11},callback:v=>"$"+v}}}}});
 
   // Tipo donuts + tabla
   const tipoQ=d.tipo_qty||{},tipoC=d.tipo_cif||{};
@@ -355,10 +365,8 @@ function renderAll(yr){
   const totalQall=Object.values(tipoQ).reduce((a,b)=>a+b,0);
   const totalCall=Object.values(tipoC).reduce((a,b)=>a+b,0);
   const tColors=tipoKeysAll.map(k=>getTipoColor(k));
-  rc("tipoQtyChart");
-  charts.tipoQty=new Chart(document.getElementById("tipoQtyChart"),{type:"doughnut",data:{labels:tipoKeysAll,datasets:[{data:tipoKeysAll.map(k=>tipoQ[k]),backgroundColor:tColors,borderWidth:2,borderColor:"#fff"}]},options:{responsive:true,maintainAspectRatio:false,cutout:"50%",plugins:{legend:{display:true,position:"bottom",labels:{font:{size:9},boxWidth:10}},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${fmt(ctx.parsed)} uds (${(ctx.parsed/totalQall*100).toFixed(1)}%)`}}}}});
-  rc("tipoCifChart");
-  charts.tipoCif=new Chart(document.getElementById("tipoCifChart"),{type:"doughnut",data:{labels:tipoKeysAll,datasets:[{data:tipoKeysAll.map(k=>tipoC[k]||0),backgroundColor:tColors,borderWidth:2,borderColor:"#fff"}]},options:{responsive:true,maintainAspectRatio:false,cutout:"50%",plugins:{legend:{display:true,position:"bottom",labels:{font:{size:9},boxWidth:10}},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${fmtK(ctx.parsed)}`}}}}});
+    upsert("tipoQty","tipoQtyChart",{type:"doughnut",data:{labels:tipoKeysAll,datasets:[{data:tipoKeysAll.map(k=>tipoQ[k]),backgroundColor:tColors,borderWidth:2,borderColor:"#fff"}]},options:{responsive:true,maintainAspectRatio:false,cutout:"50%",plugins:{legend:{display:true,position:"bottom",labels:{font:{size:9},boxWidth:10}},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${fmt(ctx.parsed)} uds (${(ctx.parsed/totalQall*100).toFixed(1)}%)`}}}}});
+    upsert("tipoCif","tipoCifChart",{type:"doughnut",data:{labels:tipoKeysAll,datasets:[{data:tipoKeysAll.map(k=>tipoC[k]||0),backgroundColor:tColors,borderWidth:2,borderColor:"#fff"}]},options:{responsive:true,maintainAspectRatio:false,cutout:"50%",plugins:{legend:{display:true,position:"bottom",labels:{font:{size:9},boxWidth:10}},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${fmtK(ctx.parsed)}`}}}}});
   ce("tipo-tbody");const tipoTbody=document.getElementById("tipo-tbody");
   tipoKeysAll.forEach(k=>{const q=tipoQ[k]||0,c=tipoC[k]||0,avg=q>0?c/q:0;const tr=document.createElement("tr");const codeHtml=TIPO_CODES[k]?`<span class="badge-code">${TIPO_CODES[k]}</span>`:"\u2014";tr.innerHTML=`<td style="font-size:11px"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${getTipoColor(k)};margin-right:5px;vertical-align:middle"></span><strong>${k}</strong></td><td style="font-size:10px">${codeHtml}</td><td style="text-align:right;font-size:11px;font-variant-numeric:tabular-nums">${fmt(q)}</td><td style="text-align:right;font-size:11px">${(q/totalQall*100).toFixed(1)}%</td><td style="text-align:right;font-size:11px">${fmtK(c)}</td><td style="text-align:right;font-size:11px;font-weight:600">$${avg.toFixed(2)}</td>`;tipoTbody.appendChild(tr);});
   const turQ=tipoQ["Turismo / Racing"]||0,mcarQ=tipoQ["Montacargas"]||0;
@@ -366,15 +374,13 @@ function renderAll(yr){
 
   // Pais
   const topCountry=(d.top_country||[]).slice(0,12);
-  rc("paisChart");
-  charts.pais=new Chart(document.getElementById("paisChart"),{type:"bar",data:{labels:topCountry.map(r=>r[0]),datasets:[{label:"Unidades",data:topCountry.map(r=>r[1]),backgroundColor:topCountry.map((_,i)=>i===0?"#e34948":i===1?"#eda100":i<4?"#3987e5":"#85b7eb"),borderWidth:0,borderRadius:{topRight:4,bottomRight:4},borderSkipped:"left"}]},options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${fmt(ctx.parsed.x)} uds`}}},scales:{x:{grid:{color:"#e1e0d9"},ticks:{color:"#888780",font:{size:11},callback:v=>(v/1000).toFixed(0)+"k"}},y:{grid:{display:false},ticks:{color:"#52514e",font:{size:11}}}}}});
+    upsert("pais","paisChart",{type:"bar",data:{labels:topCountry.map(r=>r[0]),datasets:[{label:"Unidades",data:topCountry.map(r=>r[1]),backgroundColor:topCountry.map((_,i)=>i===0?"#e34948":i===1?"#eda100":i<4?"#3987e5":"#85b7eb"),borderWidth:0,borderRadius:{topRight:4,bottomRight:4},borderSkipped:"left"}]},options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${fmt(ctx.parsed.x)} uds`}}},scales:{x:{grid:{color:"#e1e0d9"},ticks:{color:"#888780",font:{size:11},callback:v=>(v/1000).toFixed(0)+"k"}},y:{grid:{display:false},ticks:{color:"#52514e",font:{size:11}}}}}});
 
   // HK Tiancheng
   ce("hk-tbody");
   const hkClients=d.hk_clients||[],hkTotal=hkClients.reduce((s,r)=>s+r[1],0);
   const hkColors=["#2a78d6","#85b7eb","#b4b2a9","#d3d1c7","#eda100","#1baf7a"];
-  rc("hkChart");
-  charts.hk=new Chart(document.getElementById("hkChart"),{type:"doughnut",data:{labels:hkClients.map(r=>r[0]),datasets:[{data:hkClients.map(r=>r[1]),backgroundColor:hkColors.slice(0,hkClients.length),borderWidth:2,borderColor:"#fff"}]},options:{responsive:true,maintainAspectRatio:false,cutout:"52%",plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${fmt(ctx.parsed)} uds (${(ctx.parsed/hkTotal*100).toFixed(1)}%)`}}}}});
+    upsert("hk","hkChart",{type:"doughnut",data:{labels:hkClients.map(r=>r[0]),datasets:[{data:hkClients.map(r=>r[1]),backgroundColor:hkColors.slice(0,hkClients.length),borderWidth:2,borderColor:"#fff"}]},options:{responsive:true,maintainAspectRatio:false,cutout:"52%",plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${fmt(ctx.parsed)} uds (${(ctx.parsed/hkTotal*100).toFixed(1)}%)`}}}}});
   const hkTbody=document.getElementById("hk-tbody");
   hkClients.forEach((r,i)=>{const ll=isLL(r[0]),tr=document.createElement("tr");if(ll)tr.className="ling-long";tr.innerHTML=`<td style="color:#888780">${i+1}</td><td><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${hkColors[i]};margin-right:5px;vertical-align:middle"></span>${r[0]}${ll?" &#9733;":""}</td><td style="text-align:right;font-variant-numeric:tabular-nums">${fmt(r[1])}</td><td style="text-align:right">${(r[1]/hkTotal*100).toFixed(1)}%</td>`;hkTbody.appendChild(tr);});
   const hkTotalEl=document.getElementById("hk-total");if(hkTotalEl)hkTotalEl.textContent=fmt(hkTotal);
@@ -383,8 +389,7 @@ function renderAll(yr){
   ce("llsup-tbody");
   const llSup=d.ll_sup||[],llSupTotal=llSup.reduce((s,r)=>s+r[1],0);
   const llSupColors=["#2a78d6","#eb6834","#1baf7a","#eda100","#4a3aa7","#e34948","#e87ba4","#008300","#888780","#5f5e5a","#b4b2a9","#3987e5"];
-  rc("llSupChart");
-  charts.llSup=new Chart(document.getElementById("llSupChart"),{type:"doughnut",data:{labels:llSup.map(r=>r[0]),datasets:[{data:llSup.map(r=>r[1]),backgroundColor:llSupColors.slice(0,llSup.length),borderWidth:2,borderColor:"#fff"}]},options:{responsive:true,maintainAspectRatio:false,cutout:"52%",plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${fmt(ctx.parsed)} uds (${(ctx.parsed/llSupTotal*100).toFixed(1)}%)`}}}}});
+    upsert("llSup","llSupChart",{type:"doughnut",data:{labels:llSup.map(r=>r[0]),datasets:[{data:llSup.map(r=>r[1]),backgroundColor:llSupColors.slice(0,llSup.length),borderWidth:2,borderColor:"#fff"}]},options:{responsive:true,maintainAspectRatio:false,cutout:"52%",plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${fmt(ctx.parsed)} uds (${(ctx.parsed/llSupTotal*100).toFixed(1)}%)`}}}}});
   const llSupTbody=document.getElementById("llsup-tbody");
   llSup.forEach((r,i)=>{const avg=(r[1]>0?r[2]/r[1]:0).toFixed(2),tr=document.createElement("tr");if(i===0)tr.className="ling-long";tr.innerHTML=`<td style="color:#888780">${i+1}</td><td style="font-size:11px"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${llSupColors[i]};margin-right:5px;vertical-align:middle"></span>${r[0]}</td><td style="text-align:right;font-variant-numeric:tabular-nums;font-size:11px">${fmt(r[1])}</td><td style="text-align:right;font-size:11px">${(r[1]/llSupTotal*100).toFixed(1)}%</td><td style="text-align:right;font-size:11px">$${avg}</td>`;llSupTbody.appendChild(tr);});
   const mainSup=llSup[0]||["\u2014",0,0],mainPct=(llSupTotal>0?mainSup[1]/llSupTotal*100:0).toFixed(1);
@@ -394,16 +399,14 @@ function renderAll(yr){
   ce("llsub-tbody");
   const llSub=d.ll_sub||{},llSubKeys=Object.keys(llSub).sort((a,b)=>llSub[b].qty-llSub[a].qty);
   const llSubTotal2=llSubKeys.reduce((s,k)=>s+llSub[k].qty,0);
-  rc("llSubChart");
-  charts.llSub=new Chart(document.getElementById("llSubChart"),{type:"doughnut",data:{labels:llSubKeys,datasets:[{data:llSubKeys.map(k=>llSub[k].qty),backgroundColor:llSubKeys.map(k=>getTipoColor(k)),borderWidth:2,borderColor:"#fff"}]},options:{responsive:true,maintainAspectRatio:false,cutout:"52%",plugins:{legend:{display:true,position:"bottom",labels:{font:{size:10},boxWidth:10}},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${fmt(ctx.parsed)} uds (${(ctx.parsed/llSubTotal2*100).toFixed(1)}%)`}}}}});
+    upsert("llSub","llSubChart",{type:"doughnut",data:{labels:llSubKeys,datasets:[{data:llSubKeys.map(k=>llSub[k].qty),backgroundColor:llSubKeys.map(k=>getTipoColor(k)),borderWidth:2,borderColor:"#fff"}]},options:{responsive:true,maintainAspectRatio:false,cutout:"52%",plugins:{legend:{display:true,position:"bottom",labels:{font:{size:10},boxWidth:10}},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${fmt(ctx.parsed)} uds (${(ctx.parsed/llSubTotal2*100).toFixed(1)}%)`}}}}});
   const llSubTbody=document.getElementById("llsub-tbody");
   llSubKeys.forEach(k=>{const v=llSub[k],avg=v.qty>0?v.cif/v.qty:0,code=TIPO_CODES[k]||"";const tr=document.createElement("tr");tr.innerHTML=`<td style="font-size:11px"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${getTipoColor(k)};margin-right:5px;vertical-align:middle"></span>${k}</td><td style="font-size:9px;color:#888780;font-family:monospace">${code}</td><td style="text-align:right;font-size:11px;font-variant-numeric:tabular-nums">${fmt(v.qty)}</td><td style="text-align:right;font-size:11px">${(v.qty/llSubTotal2*100).toFixed(1)}%</td><td style="text-align:right;font-size:11px">$${avg.toFixed(2)}</td>`;llSubTbody.appendChild(tr);});
 
   // LL share stacked bar
   const segMkt=d.seg_mkt||{},segLL2=d.seg_ll||{};
   const segFiltered=OPP_SEGS.filter(s=>segMkt[s]&&segMkt[s].qty>0);
-  rc("llShareChart");
-  charts.llShare=new Chart(document.getElementById("llShareChart"),{type:"bar",data:{labels:segFiltered,datasets:[{label:"Ling Long",data:segFiltered.map(s=>(segLL2[s]||{qty:0}).qty),backgroundColor:"#2a78d6",borderWidth:0},{label:"Resto mercado",data:segFiltered.map(s=>segMkt[s].qty-((segLL2[s]||{qty:0}).qty)),backgroundColor:"#e1e0d9",borderWidth:0,borderRadius:{topRight:4,bottomRight:4}}]},options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"top",labels:{usePointStyle:true,font:{size:11}}},tooltip:{callbacks:{label:ctx=>{const s=segFiltered[ctx.dataIndex];const llV=(segLL2[s]||{qty:0}).qty,mktV=segMkt[s].qty;return ctx.datasetIndex===0?` Ling Long: ${fmt(llV)} uds (${(llV/mktV*100).toFixed(1)}%)`:`Resto: ${fmt(mktV-llV)} uds`;}}}},scales:{x:{stacked:true,grid:{color:"#e1e0d9"},ticks:{color:"#888780",font:{size:10},callback:v=>(v/1000).toFixed(0)+"k"}},y:{stacked:true,grid:{display:false},ticks:{color:"#52514e",font:{size:11}}}}}});
+    upsert("llShare","llShareChart",{type:"bar",data:{labels:segFiltered,datasets:[{label:"Ling Long",data:segFiltered.map(s=>(segLL2[s]||{qty:0}).qty),backgroundColor:"#2a78d6",borderWidth:0},{label:"Resto mercado",data:segFiltered.map(s=>segMkt[s].qty-((segLL2[s]||{qty:0}).qty)),backgroundColor:"#e1e0d9",borderWidth:0,borderRadius:{topRight:4,bottomRight:4}}]},options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"top",labels:{usePointStyle:true,font:{size:11}}},tooltip:{callbacks:{label:ctx=>{const s=segFiltered[ctx.dataIndex];const llV=(segLL2[s]||{qty:0}).qty,mktV=segMkt[s].qty;return ctx.datasetIndex===0?` Ling Long: ${fmt(llV)} uds (${(llV/mktV*100).toFixed(1)}%)`:`Resto: ${fmt(mktV-llV)} uds`;}}}},scales:{x:{stacked:true,grid:{color:"#e1e0d9"},ticks:{color:"#888780",font:{size:10},callback:v=>(v/1000).toFixed(0)+"k"}},y:{stacked:true,grid:{display:false},ticks:{color:"#52514e",font:{size:11}}}}}});
 
   // LL pos table
   ce("llpos-tbody");
