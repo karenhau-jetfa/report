@@ -111,6 +111,22 @@ tbody tr.ling-long td{font-weight:700;color:#185fa5;background:#edf4fc}
 .footer p{font-size:11px;color:#b4b2a9}
 .seg-card{background:#fff;border-radius:10px;border:0.5px solid #d3d1c7;padding:14px 16px}
 
+/* --- Herramientas de tabla ---------------------------------------------- */
+.tbl-tools{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin:12px 0 0;flex-wrap:wrap}
+.tbl-search{flex:0 1 200px;padding:5px 10px;border:1px solid #d3d1c7;border-radius:7px;
+  font-size:12px;color:#0b0b0b;background:#fff;font-family:inherit}
+.tbl-search:focus{outline:2px solid #2a78d6;outline-offset:1px;border-color:#2a78d6}
+.tbl-csv{padding:5px 11px;border:1px solid #d3d1c7;border-radius:7px;background:#fff;
+  color:#52514e;font-size:11.5px;font-weight:600;cursor:pointer;font-family:inherit;
+  transition:border-color .15s,color .15s}
+.tbl-csv:hover{border-color:#2a78d6;color:#2a78d6}
+table[data-tools*="sort"] thead th{cursor:pointer;user-select:none;position:relative;padding-right:18px!important}
+table[data-tools*="sort"] thead th:hover{color:#2a78d6}
+table[data-tools*="sort"] thead th::after{content:"\2195";position:absolute;right:6px;opacity:.25;font-size:10px}
+th.sorted-asc::after{content:"\2191";opacity:1;color:#2a78d6}
+th.sorted-desc::after{content:"\2193";opacity:1;color:#2a78d6}
+@media (max-width:620px){.tbl-tools{justify-content:stretch}.tbl-search{flex:1 1 auto}}
+
 /* --- Navegacion pegajosa ------------------------------------------------ */
 html{scroll-behavior:smooth}
 .secnav{position:sticky;top:0;z-index:30;margin:0 -32px 24px;padding:0 32px;
@@ -257,7 +273,7 @@ tbody tr.ling-long:hover td{background:#e2edfb}
       <p style="font-size:11px;color:#888780;margin-bottom:6px">Evolucion mensual de unidades</p>
       <div class="cwrap" style="--h:200px"><canvas id="profLineChart"></canvas></div>
     </div>
-    <div class="table-wrap" style="margin-top:14px"><table><thead id="prof-thead"></thead><tbody id="prof-tbody"></tbody></table></div>
+    <div class="table-wrap" style="margin-top:14px"><table data-tools="sort,search,csv" data-name="perfil-filtrado"><thead id="prof-thead"></thead><tbody id="prof-tbody"></tbody></table></div>
   </div>
 </div>
 <div class="section" id="sec-mercado">
@@ -269,7 +285,7 @@ tbody tr.ling-long:hover td{background:#e2edfb}
 <div class="section" id="sec-importadores">
   <div class="section-title">Ranking de importadores por cantidad</div>
   <div class="section-desc">Top 15 importadores ordenados por volumen. &#9733; = Distribuidora Ling Long.</div>
-  <div class="table-wrap"><table><thead><tr><th style="width:36px">#</th><th>Importador</th><th style="text-align:right">Unidades</th><th style="text-align:right" id="imp-th-delta">Variacion</th><th style="text-align:right">Market Share</th><th style="width:130px">Volumen relativo</th></tr></thead><tbody id="imp-table"></tbody></table></div>
+  <div class="table-wrap"><table data-tools="sort,search,csv" data-name="importadores"><thead><tr><th style="width:36px">#</th><th>Importador</th><th style="text-align:right">Unidades</th><th style="text-align:right" id="imp-th-delta">Variacion</th><th style="text-align:right">Market Share</th><th style="width:130px">Volumen relativo</th></tr></thead><tbody id="imp-table"></tbody></table></div>
 </div>
 <div class="section" id="sec-mensual">
   <div class="section-title">Evolucion mensual &#8212; Top 10 importadores</div>
@@ -277,7 +293,7 @@ tbody tr.ling-long:hover td{background:#e2edfb}
   <div class="legend" id="legend-line"></div>
   <div class="chart-wrap-line"><canvas id="lineChart"></canvas></div>
   <div class="table-wrap" style="margin-top:20px">
-    <table id="monthly-table"><thead><tr><th>#</th><th>Importador</th><th style="text-align:right">Ene</th><th style="text-align:right">Feb</th><th style="text-align:right">Mar</th><th style="text-align:right">Abr</th><th style="text-align:right">May</th><th style="text-align:right">Jun</th><th style="text-align:right">Jul</th><th style="text-align:right">Ago</th><th style="text-align:right">Sep</th><th style="text-align:right">Oct</th><th style="text-align:right">Nov</th><th style="text-align:right">Dic</th><th style="text-align:right;font-weight:700">Total</th></tr></thead>
+    <table id="monthly-table" data-tools="sort,search,csv" data-name="evolucion-mensual"><thead><tr><th>#</th><th>Importador</th><th style="text-align:right">Ene</th><th style="text-align:right">Feb</th><th style="text-align:right">Mar</th><th style="text-align:right">Abr</th><th style="text-align:right">May</th><th style="text-align:right">Jun</th><th style="text-align:right">Jul</th><th style="text-align:right">Ago</th><th style="text-align:right">Sep</th><th style="text-align:right">Oct</th><th style="text-align:right">Nov</th><th style="text-align:right">Dic</th><th style="text-align:right;font-weight:700">Total</th></tr></thead>
     <tbody id="monthly-tbody"></tbody></table>
   </div>
 </div>
@@ -285,7 +301,7 @@ tbody tr.ling-long:hover td{background:#e2edfb}
   <div class="section-title">Top 20 exportadores por cantidad de unidades</div>
   <div class="section-desc">Proveedores con mayor volumen de exportacion hacia Panama.</div>
   <div class="chart-wrap-bar"><canvas id="barChart"></canvas></div>
-  <div class="table-wrap" style="margin-top:20px"><table><thead><tr><th>#</th><th>Exportador</th><th style="text-align:right">Unidades</th></tr></thead><tbody id="exp-tbody"></tbody></table></div>
+  <div class="table-wrap" style="margin-top:20px"><table data-tools="sort,search,csv" data-name="exportadores"><thead><tr><th>#</th><th>Exportador</th><th style="text-align:right">Unidades</th></tr></thead><tbody id="exp-tbody"></tbody></table></div>
 </div>
 <div class="section" id="sec-precios">
   <div class="section-title">Evolucion mensual del precio promedio (U$ CIF/unidad)</div>
@@ -300,7 +316,7 @@ tbody tr.ling-long:hover td{background:#e2edfb}
     <div><p style="font-size:11px;color:#888780;margin-bottom:8px">Por valor CIF</p><div class="cwrap" style="--h:280px"><canvas id="tipoCifChart"></canvas></div></div>
   </div>
   <div class="table-wrap" style="margin-top:16px">
-    <table><thead><tr><th>Segmento</th><th>Codigo arancelario</th><th style="text-align:right">Unidades</th><th style="text-align:right">% Mercado</th><th style="text-align:right">Valor CIF</th><th style="text-align:right">$/ud CIF</th></tr></thead>
+    <table data-tools="sort,csv" data-name="segmentos"><thead><tr><th>Segmento</th><th>Codigo arancelario</th><th style="text-align:right">Unidades</th><th style="text-align:right">% Mercado</th><th style="text-align:right">Valor CIF</th><th style="text-align:right">$/ud CIF</th></tr></thead>
     <tbody id="tipo-tbody"></tbody></table>
   </div>
   <div class="insight" id="insight-tipo"></div>
@@ -315,7 +331,7 @@ tbody tr.ling-long:hover td{background:#e2edfb}
   <div class="section-desc">Distribucion de las importaciones de HK Tiancheng por empresa compradora.</div>
   <div class="grid-2" style=";align-items:center">
     <div class="cwrap" style="--h:260px"><canvas id="hkChart"></canvas></div>
-    <div class="table-wrap"><table><thead><tr><th>#</th><th>Importador</th><th style="text-align:right">Unidades</th><th style="text-align:right">%</th></tr></thead><tbody id="hk-tbody"></tbody><tfoot><tr style="border-top:1.5px solid #d3d1c7"><td colspan="2" style="padding:7px 12px;font-weight:700;font-size:12px">Total</td><td id="hk-total" style="text-align:right;padding:7px 12px;font-weight:700;font-size:12px"></td><td style="text-align:right;padding:7px 12px;font-weight:700;font-size:12px">100%</td></tr></tfoot></table></div>
+    <div class="table-wrap"><table data-tools="sort,csv" data-name="hk-tiancheng-clientes"><thead><tr><th>#</th><th>Importador</th><th style="text-align:right">Unidades</th><th style="text-align:right">%</th></tr></thead><tbody id="hk-tbody"></tbody><tfoot><tr style="border-top:1.5px solid #d3d1c7"><td colspan="2" style="padding:7px 12px;font-weight:700;font-size:12px">Total</td><td id="hk-total" style="text-align:right;padding:7px 12px;font-weight:700;font-size:12px"></td><td style="text-align:right;padding:7px 12px;font-weight:700;font-size:12px">100%</td></tr></tfoot></table></div>
   </div>
   <div class="insight"><strong>Distribuidora Ling Long representa la mayor parte del volumen exportado por HK Tiancheng hacia Panama.</strong> Los otros compradores son en su mayoria clientes de Ling Long que adquieren contenedores directos, por lo que la operacion de HK Tiancheng en Panama esta integramente canalizada a traves de Ling Long.</div>
 </div><div class="section" id="sec-proveedores">
@@ -323,7 +339,7 @@ tbody tr.ling-long:hover td{background:#e2edfb}
   <div class="section-desc">Proveedores de Distribuidora Ling Long consolidados por nombre.</div>
   <div class="grid-2" style=";align-items:center">
     <div class="cwrap" style="--h:300px"><canvas id="llSupChart"></canvas></div>
-    <div class="table-wrap"><table><thead><tr><th>#</th><th>Supplier</th><th style="text-align:right">Uds</th><th style="text-align:right">%</th><th style="text-align:right">$/ud</th></tr></thead><tbody id="llsup-tbody"></tbody></table></div>
+    <div class="table-wrap"><table data-tools="sort,csv" data-name="ling-long-proveedores"><thead><tr><th>#</th><th>Supplier</th><th style="text-align:right">Uds</th><th style="text-align:right">%</th><th style="text-align:right">$/ud</th></tr></thead><tbody id="llsup-tbody"></tbody></table></div>
   </div>
   <div class="insight" id="insight-sup"></div>
 </div>
@@ -333,13 +349,13 @@ tbody tr.ling-long:hover td{background:#e2edfb}
   <p style="font-size:12px;font-weight:600;margin-bottom:12px">Importaciones de Ling Long por tipo de neumatico</p>
   <div class="grid-2" style=";align-items:center;margin-bottom:28px">
     <div class="cwrap" style="--h:300px"><canvas id="llSubChart"></canvas></div>
-    <div class="table-wrap"><table><thead><tr><th>Segmento</th><th>Codigo</th><th style="text-align:right">Uds</th><th style="text-align:right">%</th><th style="text-align:right">$/ud</th></tr></thead><tbody id="llsub-tbody"></tbody></table></div>
+    <div class="table-wrap"><table data-tools="sort,csv" data-name="ling-long-por-segmento"><thead><tr><th>Segmento</th><th>Codigo</th><th style="text-align:right">Uds</th><th style="text-align:right">%</th><th style="text-align:right">$/ud</th></tr></thead><tbody id="llsub-tbody"></tbody></table></div>
   </div>
   <p style="font-size:12px;font-weight:600;margin-bottom:4px">Market share de Ling Long por segmento</p>
   <p style="font-size:11px;color:#888780;margin-bottom:12px">Comparacion vs. el resto del mercado.</p>
   <div class="cwrap" style="--h:340px;margin-bottom:24px"><canvas id="llShareChart"></canvas></div>
   <div class="table-wrap" style="margin-bottom:20px">
-    <table><thead><tr><th>Segmento</th><th>Codigo</th><th style="text-align:right">Mercado total</th><th style="text-align:right">Ling Long</th><th style="text-align:right">Share LL</th><th style="text-align:right">$/ud mercado</th><th style="text-align:right">$/ud LL</th></tr></thead><tbody id="llpos-tbody"></tbody></table>
+    <table data-tools="sort,csv" data-name="posicionamiento-por-segmento"><thead><tr><th>Segmento</th><th>Codigo</th><th style="text-align:right">Mercado total</th><th style="text-align:right">Ling Long</th><th style="text-align:right">Share LL</th><th style="text-align:right">$/ud mercado</th><th style="text-align:right">$/ud LL</th></tr></thead><tbody id="llpos-tbody"></tbody></table>
   </div>
   <p style="font-size:12px;font-weight:600;margin-bottom:12px">Competidores por segmento de oportunidad</p>
   <div class="grid-2" id="comp-cards"></div>
@@ -710,6 +726,7 @@ function applyFilter(){
   if(currentFilterMode==="imp") renderImpProfile(val);
   else if(currentFilterMode==="exp") renderExpProfile(val);
   else if(currentFilterMode==="seg") renderSegProfile(val);
+  markSortableThs();
 }
 
 const PROF_COLORS=["#2a78d6","#eb6834","#1baf7a","#eda100","#4a3aa7","#e34948","#e87ba4","#008300","#888780","#5f5e5a"];
@@ -816,7 +833,105 @@ function renderSegProfile(seg){
   segTopData.forEach((r,i)=>{const ll=isLL(r[0]);const avg2=r[1]>0?r[2]/r[1]:0;const tr=document.createElement("tr");if(ll)tr.className="ling-long";tr.innerHTML=`<td style="color:#888780">${i+1}</td><td style="font-size:11px"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${getColor(r[0])};margin-right:5px;vertical-align:middle"></span>${r[0]}${ll?" &#9733;":""}</td><td style="text-align:right;font-variant-numeric:tabular-nums">${fmt(r[1])}</td><td style="text-align:right">${qty>0?(r[1]/qty*100).toFixed(1):0}%</td><td style="text-align:right;font-weight:600">$${avg2.toFixed(2)}</td>`;tb.appendChild(tr);});
 }
 
+// --- Herramientas de tabla: ordenar, buscar, exportar --------------------
+// Trabaja sobre el DOM actual, asi que sigue funcionando cuando renderAll()
+// reconstruye los tbody al cambiar de anio.
+function cellNum(td){
+  const t=(td.textContent||"").replace(/−/g,"-");
+  if(/^\\s*[—-]\\s*$/.test(t))return null;              // guion = sin dato
+  const m=t.replace(/[^0-9.,+-]/g,"").replace(/,/g,"");
+  if(m===""||m==="-"||m==="+")return null;
+  const v=parseFloat(m);
+  return isNaN(v)?null:v;
+}
+function rowsOf(tb){return [...tb.querySelectorAll("tr")];}
+function sortTable(table,idx,dir){
+  const tb=table.tBodies[0];if(!tb)return;
+  const rows=rowsOf(tb);
+  const nums=rows.map(r=>cellNum(r.cells[idx]));
+  const numeric=nums.filter(v=>v!==null).length>=Math.max(2,rows.length*0.6);
+  rows.sort((a,b)=>{
+    if(numeric){
+      const x=cellNum(a.cells[idx]),y=cellNum(b.cells[idx]);
+      if(x===null&&y===null)return 0;
+      if(x===null)return 1;            // sin dato siempre al final
+      if(y===null)return -1;
+      return dir*(x-y);
+    }
+    return dir*(a.cells[idx].textContent||"").localeCompare((b.cells[idx].textContent||""),"es");
+  });
+  rows.forEach(r=>tb.appendChild(r));
+}
+function tableCSV(table){
+  const out=[];
+  const hr=table.tHead&&table.tHead.rows[0];
+  if(hr)out.push([...hr.cells].map(th=>th.textContent.trim()));
+  rowsOf(table.tBodies[0]).forEach(r=>{
+    if(r.style.display==="none")return;                     // respeta el filtro
+    out.push([...r.cells].map(td=>td.textContent.replace(/\\s+/g," ").trim()));
+  });
+  return out.map(r=>r.map(c=>/[",;\\n]/.test(c)?'"'+c.replace(/"/g,'""')+'"':c).join(",")).join("\\n");
+}
+function downloadCSV(table){
+  const name=(table.dataset.name||"tabla")+"-"+getActiveYear()+".csv";
+  const blob=new Blob(["\\uFEFF"+tableCSV(table)],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},0);
+}
+function filterTable(table,q){
+  const t=q.trim().toLowerCase();
+  rowsOf(table.tBodies[0]).forEach(r=>{
+    r.style.display=(!t||r.textContent.toLowerCase().includes(t))?"":"none";
+  });
+}
+function markSortableThs(){
+  document.querySelectorAll('table[data-tools*="sort"] thead th').forEach(th=>{
+    th.tabIndex=0;th.setAttribute("role","button");
+  });
+}
+function setupTableTools(){
+  document.querySelectorAll("table[data-tools]").forEach(table=>{
+    const tools=(table.dataset.tools||"").split(",");
+    const wrap=table.closest(".table-wrap")||table;
+    const bar=document.createElement("div");bar.className="tbl-tools";
+    if(tools.includes("search")){
+      const inp=document.createElement("input");
+      inp.type="search";inp.className="tbl-search";inp.placeholder="Buscar…";
+      inp.setAttribute("aria-label","Buscar en la tabla");
+      inp.addEventListener("input",()=>filterTable(table,inp.value));
+      bar.appendChild(inp);
+    }
+    if(tools.includes("csv")){
+      const b=document.createElement("button");
+      b.type="button";b.className="tbl-csv";b.textContent="Exportar CSV";
+      b.addEventListener("click",()=>downloadCSV(table));
+      bar.appendChild(b);
+    }
+    if(bar.children.length)wrap.parentNode.insertBefore(bar,wrap);
+    if(tools.includes("sort")){
+      // Delegado: la cabecera del panel de filtros se reconstruye en cada consulta,
+      // asi que no sirve enganchar listeners a los th que existen al cargar.
+      table.addEventListener("click",e=>{
+        const th=e.target.closest("th");
+        if(!th||!table.tHead||!table.tHead.contains(th))return;
+        const ths=[...th.parentNode.cells],idx=ths.indexOf(th);
+        const dir=th.dataset.dir==="1"?-1:1;
+        ths.forEach(o=>{delete o.dataset.dir;o.classList.remove("sorted-asc","sorted-desc");});
+        th.dataset.dir=String(dir);
+        th.classList.add(dir===1?"sorted-asc":"sorted-desc");
+        sortTable(table,idx,dir);
+      });
+      table.addEventListener("keydown",e=>{
+        if((e.key==="Enter"||e.key===" ")&&e.target.tagName==="TH"){e.preventDefault();e.target.click();}
+      });
+    }
+  });
+  markSortableThs();
+}
+
 renderAll(2025);
+setupTableTools();
 
 // --- Scroll-spy de la navegacion ---------------------------------------
 (function(){
