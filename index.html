@@ -91,6 +91,12 @@ th.sorted-asc::after{content:"↑";opacity:1;color:#2a78d6}
 th.sorted-desc::after{content:"↓";opacity:1;color:#2a78d6}
 @media (max-width:620px){.tbl-tools{justify-content:stretch}.tbl-search{flex:1 1 auto}}
 
+#sec-resumen{background:#fff;border-left:3px solid #2a78d6}
+.res-linea{display:flex;gap:9px;align-items:flex-start;font-size:13px;line-height:1.55;margin-top:9px}
+.res-linea:first-child{margin-top:12px}
+.res-punto{flex:0 0 auto;width:6px;height:6px;border-radius:50%;background:#2a78d6;margin-top:7px}
+.res-linea strong{color:#185fa5}
+
 /* --- Navegacion pegajosa ------------------------------------------------ */
 html{scroll-behavior:smooth}
 .secnav{position:sticky;top:0;z-index:30;margin:0 -32px 24px;padding:0 32px;
@@ -175,15 +181,24 @@ tbody tr.ling-long:hover td{background:#e2edfb}
   html{scroll-behavior:auto}
   *{transition-duration:.01ms!important;animation-duration:.01ms!important}
 }
-@media print{body{background:#fff}.page{padding:20px}.section{break-inside:avoid}.year-selector{display:none}}
+@media print{
+  body{background:#fff}
+  .page{padding:20px;max-width:none}
+  .section{break-inside:avoid;border:0.5px solid #d3d1c7}
+  /* Nada de esto tiene sentido en papel */
+  .year-selector,.secnav,.tbl-tools,#filter-section{display:none!important}
+  th.sortable::after,table[data-tools*="sort"] thead th::after{content:""!important}
+  a{text-decoration:none;color:inherit}
+  .cwrap{height:var(--h)!important}
+}
 </style>
 </head>
 <body>
 <div class="page">
 <header class="header">
   <div class="header-top">
-    <div><div class="brand-name">Distribuidora Ling Long, S.A.</div><div class="brand-sub">Analisis de Mercado — Uso Interno</div></div>
-    <div class="report-meta"><div><span class="byline">Desarrollado por Karen Hau</span></div><div>Generado el 17 de julio de 2026</div><div>Fuente: Veritrade — Aduana Panama</div></div>
+    <div><div class="brand-name">Distribuidora Ling Long, S.A.</div><div class="brand-sub">Análisis de Mercado — Uso Interno</div></div>
+    <div class="report-meta"><div><span class="byline">Desarrollado por Karen Hau</span></div><div>Generado el 21 de julio de 2026</div><div>Fuente: Veritrade — Aduana Panama</div></div>
   </div>
   <h1 id="report-title">Mercado de Neumaticos en Panama 2025</h1>
   <p class="subtitle" id="report-subtitle">Partida arancelaria 4011 &middot; Importaciones enero&ndash;diciembre 2025 &middot; Fuente: Veritrade</p>
@@ -199,8 +214,12 @@ tbody tr.ling-long:hover td{background:#e2edfb}
     <button class="year-btn" onclick="switchYear(2026)" style="border-style:dashed">2026 <span style="font-size:10px;font-weight:400">ene&ndash;may</span></button>
   </div>
 </header>
-<nav class="secnav" id="secnav" aria-label="Secciones del reporte"><div class="secnav-inner"><a href="#sec-mercado">Mercado</a><a href="#sec-importadores">Importadores</a><a href="#sec-mensual">Mensual</a><a href="#sec-exportadores">Exportadores</a><a href="#sec-precios">Precios</a><a href="#sec-segmentos">Segmentos</a><a href="#sec-origenes">Origenes</a><a href="#sec-hk">HK Tiancheng</a><a href="#sec-proveedores">Proveedores LL</a><a href="#sec-posicion">Posicion LL</a><a href="#sec-movimientos">Movimientos</a><a href="#sec-oportunidad">Oportunidad</a><a href="#sec-nomenclatura">Nomenclatura</a></div></nav>
+<nav class="secnav" id="secnav" aria-label="Secciones del reporte"><div class="secnav-inner"><a href="#sec-resumen">Resumen</a><a href="#sec-mercado">Mercado</a><a href="#sec-importadores">Importadores</a><a href="#sec-mensual">Mensual</a><a href="#sec-exportadores">Exportadores</a><a href="#sec-precios">Precios</a><a href="#sec-segmentos">Segmentos</a><a href="#sec-origenes">Origenes</a><a href="#sec-hk">HK Tiancheng</a><a href="#sec-proveedores">Proveedores LL</a><a href="#sec-posicion">Posicion LL</a><a href="#sec-movimientos">Movimientos</a><a href="#sec-oportunidad">Oportunidad</a><a href="#sec-nomenclatura">Nomenclatura</a></div></nav>
 <main id="report-main">
+<div class="section" id="sec-resumen">
+  <div class="section-title">Resumen</div>
+  <div id="resumen-cuerpo"></div>
+</div>
 <div class="kpi-row">
   <div class="kpi"><div class="kpi-label">Total mercado</div><div class="kpi-value" id="kpi-total">&#8212;</div><div class="kpi-sub">unidades importadas</div><div id="kpi-total-delta"></div></div>
   <div class="kpi"><div class="kpi-label">Dist. Ling Long</div><div class="kpi-value blue" id="kpi-ll">&#8212;</div><div class="kpi-sub">unidades importadas</div><div class="badge" id="kpi-share">&#8212;</div><div id="kpi-ll-delta"></div></div>
@@ -208,8 +227,8 @@ tbody tr.ling-long:hover td{background:#e2edfb}
   <div class="kpi"><div class="kpi-label">Diferencia vs. lider</div><div class="kpi-value" id="kpi-diff">&#8212;</div><div class="kpi-sub" id="kpi-diff-sub">&#8212;</div></div>
 </div>
 <div class="section" id="filter-section">
-  <div class="section-title">Filtros de Analisis</div>
-  <div class="section-desc">Selecciona un filtro para explorar el mercado desde una perspectiva especifica.</div>
+  <div class="section-title">Filtros de Análisis</div>
+  <div class="section-desc">Selecciona un filtro para explorar el mercado desde una perspectiva específica.</div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
     <button class="filter-tab" id="ftab-imp" onclick="setFilterMode('imp')">Por Importador</button>
     <button class="filter-tab" id="ftab-exp" onclick="setFilterMode('exp')">Por Exportador</button>
@@ -229,13 +248,14 @@ tbody tr.ling-long:hover td{background:#e2edfb}
         <div class="cwrap" style="--h:280px"><canvas id="profBarChart"></canvas></div>
       </div>
       <div>
-        <p style="font-size:11px;color:#888780;margin-bottom:6px">Distribucion por segmento</p>
+        <p style="font-size:11px;color:#888780;margin-bottom:6px">Distribución por segmento</p>
         <div class="cwrap" style="--h:280px"><canvas id="profDonutChart"></canvas></div>
       </div>
     </div>
-    <div style="margin-top:16px">
-      <p style="font-size:11px;color:#888780;margin-bottom:6px">Evolucion mensual de unidades</p>
+    <div style="margin-top:16px" id="prof-line-wrap">
+      <p id="prof-line-title" style="font-size:11px;color:#888780;margin-bottom:6px">Evolución mensual de unidades</p>
       <div class="cwrap" style="--h:200px"><canvas id="profLineChart"></canvas></div>
+      <p id="prof-line-nota" style="display:none;font-size:11px;color:#888780;background:#f4f3f0;border-radius:8px;padding:10px 12px">El desglose mensual por sub-partida no está en los datos de origen: haría falta añadir <code>seg_monthly</code> al script de extracción y reprocesar los xlsx. Se oculta el gráfico en vez de mostrarlo vacío.</p>
     </div>
     <div class="table-wrap" style="margin-top:14px"><table data-tools="sort,search,csv" data-name="perfil-filtrado"><thead id="prof-thead"></thead><tbody id="prof-tbody"></tbody></table></div>
   </div>
@@ -248,11 +268,11 @@ tbody tr.ling-long:hover td{background:#e2edfb}
 </div>
 <div class="section" id="sec-importadores">
   <div class="section-title">Ranking de importadores por cantidad</div>
-  <div class="section-desc">Top 15 importadores ordenados por volumen. &#9733; = Distribuidora Ling Long.</div>
-  <div class="table-wrap"><table data-tools="sort,search,csv" data-name="importadores"><thead><tr><th style="width:36px">#</th><th>Importador</th><th style="text-align:right">Unidades</th><th style="text-align:right" id="imp-th-delta">Variacion</th><th style="text-align:right">Market Share</th><th style="width:130px">Volumen relativo</th></tr></thead><tbody id="imp-table"></tbody></table></div>
+  <div class="section-desc">Los mismos 15 importadores del gráfico anterior, con su variación respecto al periodo comparable. &#9733; = Distribuidora Ling Long.</div>
+  <div class="table-wrap"><table data-tools="sort,search,csv" data-name="importadores"><thead><tr><th style="width:36px">#</th><th>Importador</th><th style="text-align:right">Unidades</th><th style="text-align:right" id="imp-th-delta">Variacion</th><th style="text-align:right">Market Share</th></tr></thead><tbody id="imp-table"></tbody></table></div>
 </div>
 <div class="section" id="sec-mensual">
-  <div class="section-title">Evolucion mensual &#8212; Top 10 importadores</div>
+  <div class="section-title">Evolución mensual &#8212; Top 10 importadores</div>
   <div class="section-desc">Unidades importadas por mes.</div>
   <div class="legend" id="legend-line"></div>
   <div class="chart-wrap-line"><canvas id="lineChart"></canvas></div>
@@ -268,13 +288,13 @@ tbody tr.ling-long:hover td{background:#e2edfb}
   <div class="table-wrap" style="margin-top:20px"><table data-tools="sort,search,csv" data-name="exportadores"><thead><tr><th>#</th><th>Exportador</th><th style="text-align:right">Unidades</th></tr></thead><tbody id="exp-tbody"></tbody></table></div>
 </div>
 <div class="section" id="sec-precios">
-  <div class="section-title">Evolucion mensual del precio promedio (U$ CIF/unidad)</div>
+  <div class="section-title">Evolución mensual del precio promedio (U$ CIF/unidad)</div>
   <div class="section-desc">Precio promedio por unidad mes a mes &#8212; mercado total vs Distribuidora Ling Long.</div>
   <div class="cwrap" style="--h:320px"><canvas id="priceMonthChart"></canvas></div>
 </div>
 <div class="section" id="sec-segmentos">
-  <div class="section-title">Segmentacion por tipo de neumatico</div>
-  <div class="section-desc">Distribucion segun partida arancelaria. Izquierda: por cantidad. Derecha: por valor CIF.</div>
+  <div class="section-title">Segmentación por tipo de neumático</div>
+  <div class="section-desc">Distribución según partida arancelaria. Izquierda: por cantidad. Derecha: por valor CIF.</div>
   <div class="grid-2">
     <div><p style="font-size:11px;color:#888780;margin-bottom:8px">Por unidades</p><div class="cwrap" style="--h:280px"><canvas id="tipoQtyChart"></canvas></div></div>
     <div><p style="font-size:11px;color:#888780;margin-bottom:8px">Por valor CIF</p><div class="cwrap" style="--h:280px"><canvas id="tipoCifChart"></canvas></div></div>
@@ -286,20 +306,20 @@ tbody tr.ling-long:hover td{background:#e2edfb}
   <div class="insight" id="insight-tipo"></div>
 </div>
 <div class="section" id="sec-origenes">
-  <div class="section-title">Pais de origen</div>
-  <div class="section-desc">Principales paises de origen de los neumaticos importados a Panama.</div>
+  <div class="section-title">País de origen</div>
+  <div class="section-desc">Principales países de origen de los neumaticos importados a Panama.</div>
   <div class="cwrap" style="--h:420px"><canvas id="paisChart"></canvas></div>
 </div>
 <div class="section" id="sec-hk">
-  <div class="section-title">Analisis HK Tiancheng &#8212; Clientes en Panama</div>
-  <div class="section-desc">Distribucion de las importaciones de HK Tiancheng por empresa compradora.</div>
+  <div class="section-title">Análisis HK Tiancheng &#8212; Clientes en Panamá</div>
+  <div class="section-desc">Distribución de las importaciones de HK Tiancheng por empresa compradora.</div>
   <div class="grid-2" style=";align-items:center">
     <div class="cwrap" style="--h:260px"><canvas id="hkChart"></canvas></div>
     <div class="table-wrap"><table data-tools="sort,csv" data-name="hk-tiancheng-clientes"><thead><tr><th>#</th><th>Importador</th><th style="text-align:right">Unidades</th><th style="text-align:right">%</th></tr></thead><tbody id="hk-tbody"></tbody><tfoot><tr style="border-top:1.5px solid #d3d1c7"><td colspan="2" style="padding:7px 12px;font-weight:700;font-size:12px">Total</td><td id="hk-total" style="text-align:right;padding:7px 12px;font-weight:700;font-size:12px"></td><td style="text-align:right;padding:7px 12px;font-weight:700;font-size:12px">100%</td></tr></tfoot></table></div>
   </div>
   <div class="insight"><strong>Distribuidora Ling Long representa la mayor parte del volumen exportado por HK Tiancheng hacia Panama.</strong> Los otros compradores son en su mayoria clientes de Ling Long que adquieren contenedores directos, por lo que la operacion de HK Tiancheng en Panama esta integramente canalizada a traves de Ling Long.</div>
 </div><div class="section" id="sec-proveedores">
-  <div class="section-title">Analisis Ling Long &#8212; Suppliers / Exportadores</div>
+  <div class="section-title">Análisis Ling Long &#8212; Proveedores / Exportadores</div>
   <div class="section-desc">Proveedores de Distribuidora Ling Long consolidados por nombre.</div>
   <div class="grid-2" style=";align-items:center">
     <div class="cwrap" style="--h:300px"><canvas id="llSupChart"></canvas></div>
@@ -309,7 +329,7 @@ tbody tr.ling-long:hover td{background:#e2edfb}
 </div>
 <div class="section" id="sec-posicion">
   <div class="section-title">Dist. Ling Long &#8212; Posicionamiento por segmento</div>
-  <div class="section-desc">Participacion de Ling Long en cada segmento del mercado segun partida arancelaria.</div>
+  <div class="section-desc">Participación de Ling Long en cada segmento del mercado segun partida arancelaria.</div>
   <p style="font-size:12px;font-weight:600;margin-bottom:12px">Importaciones de Ling Long por tipo de neumatico</p>
   <div class="grid-2" style=";align-items:center;margin-bottom:28px">
     <div class="cwrap" style="--h:300px"><canvas id="llSubChart"></canvas></div>
@@ -341,13 +361,13 @@ tbody tr.ling-long:hover td{background:#e2edfb}
 </div>
 <div class="section" id="sec-oportunidad">
   <div class="section-title">Mapa de oportunidad por segmento</div>
-  <div class="section-desc">Cada burbuja es un segmento. Horizontal: tamano del segmento en unidades (escala logaritmica, porque el mayor es 3.000 veces el menor). Vertical: cuota de Ling Long dentro de ese segmento. Tamano de la burbuja: valor CIF, o sea cuanto dinero mueve. Lo interesante esta abajo a la derecha: segmentos grandes y valiosos donde Ling Long pesa poco.</div>
+  <div class="section-desc">Cada burbuja es un segmento. Horizontal: tamaño del segmento en unidades (escala logarítmica, porque el mayor es 3.000 veces el menor). Vertical: cuota de Ling Long dentro de ese segmento. Tamaño de la burbuja: valor CIF, o sea cuanto dinero mueve. Lo interesante está abajo a la derecha: segmentos grandes y valiosos donde Ling Long pesa poco.</div>
   <div class="cwrap" style="--h:420px"><canvas id="oportChart"></canvas></div>
   <div class="insight" id="insight-oport"></div>
 </div>
 <div class="section" id="sec-nomenclatura">
   <div class="section-title">Nomenclatura arancelaria &#8212; Partida 4011</div>
-  <div class="section-desc">Sub-partidas de neumaticos de caucho nuevos segun la Aduana de Panama.</div>
+  <div class="section-desc">Sub-partidas de neumáticos de caucho nuevos según la Aduana de Panama.</div>
   <style>
   .sp-group-lbl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:#888780;margin:14px 0 4px 2px}
   .sp-row{display:grid;grid-template-columns:130px 1fr 160px;align-items:start;gap:0;background:#fff;border:0.5px solid #d3d1c7;border-bottom:none;padding:8px 12px}
@@ -359,14 +379,14 @@ tbody tr.ling-long:hover td{background:#e2edfb}
   .sp-desc small{display:block;font-size:10.5px;color:#888780;margin-top:2px}
   .sp-pill{font-size:9.5px;font-weight:600;padding:2px 8px;border-radius:20px;white-space:nowrap;justify-self:end;margin-top:1px}
   .pill-tur{background:#e6f1fb;color:#0c447c}
-  .pill-bus{background:#faeeda;color:#633806}
-  .pill-moto{background:#eeedfe;color:#3c3489}
-  .pill-bici{background:#eaf3de;color:#27500a}
-  .pill-agri{background:#e1f5ee;color:#085041}
-  .pill-fork{background:#faeeda;color:#854f0b}
-  .pill-const{background:#fcebeb;color:#791f1f}
-  .pill-aero{background:#fbeaf0;color:#72243e}
-  .pill-otros{background:#f4f3f0;color:#52514e;border:0.5px solid #d3d1c7}
+  .pill-bus{background:#f6ece4;color:#6b3208}
+  .pill-moto{background:#f2ebf4;color:#5a3163}
+  .pill-bici{background:#e4f7fc;color:#0f5a6b}
+  .pill-agri{background:#e6f4ec;color:#1c5c3c}
+  .pill-fork{background:#fcf3e2;color:#7a5510}
+  .pill-const{background:#f9edf4;color:#7c3f63}
+  .pill-aero{background:#eeeaeb;color:#40242d}
+  .pill-otros{background:#eaefee;color:#2b4a44}
   </style>
 
   <div class="sp-group-lbl">Vehiculos livianos y de pasajeros</div>
@@ -395,7 +415,7 @@ tbody tr.ling-long:hover td{background:#e2edfb}
 </div>
 </main>
 <footer class="footer">
-  <p>Distribuidora Ling Long, S.A. &middot; Analisis Competitivo 2019&#8211;2026 &middot; Confidencial &middot; Karen Hau</p>
+  <p>Distribuidora Ling Long, S.A. &middot; Análisis Competitivo 2019&#8211;2026 &middot; Confidencial &middot; Karen Hau</p>
   <p>Fuente: Veritrade &#8212; Aduana Nacional de Panama &middot; Partida 4011</p>
 </div>
 </div>
@@ -405,19 +425,26 @@ const COLOR_MAP = {"Ling Long": "#2a78d6", "Auto Centro S.A.": "#9c470d", "Centr
 const TIPO_CODES = {"Turismo / Racing": "4011.10", "Autobús / Camión": "4011.20", "Motocicletas": "4011.40 / 4011.60", "Bicicletas": "4011.50", "Montacargas": "4011.80.11 / 4011.80.91", "Construcción / Industrial": "4011.80.19 / 4011.80.99 / 4011.90.10", "Agrícola / Forestal": "4011.70.10 / 4011.70.90", "Aeronaves": "4011.30", "Otros": "4011.80.12 / 4011.90.90"};
 const MONTHS=["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
 const TIPO_COLORS={
+  // Paleta validada: las 36 parejas superan los umbrales (normal 15, deuteranopia 8,
+  // protanopia 8) y todas contrastan con el fondo crema. La anterior fallaba en 5,
+  // la peor Autobus vs Construccion a 7.1 en vision normal y 5.4 en deuteranopia,
+  // que son justo los dos segmentos que sostienen la conclusion del mapa.
+  // Naranja y rojo se confunden en deuteranopia por mucho que se ajusten: hay que
+  // separarlos de tono, no de matiz.
   "Turismo / Racing":"#2a78d6",
-  "Autobus / Camion":"#eb6834",
-  "Autob\u00fas / Cami\u00f3n":"#eb6834",
-  "Motocicletas":"#4a3aa7",
-  "Bicicletas":"#1baf7a",
-  "Montacargas":"#eda100",
-  "Construcci\u00f3n / Industrial":"#e34948",
-  "Construccion / Industrial":"#e34948",
-  "Agr\u00edcola / Forestal":"#008300",
-  "Agricola / Forestal":"#008300",
-  "Aeronaves":"#888780",
-  "Otros":"#d3d1c7"
+  "Autobus / Camion":"#9c470d",
+  "Autobús / Camión":"#9c470d",
+  "Motocicletas":"#834791",
+  "Bicicletas":"#38d2f3",
+  "Montacargas":"#edb154",
+  "Construcción / Industrial":"#cd76b1",
+  "Construccion / Industrial":"#cd76b1",
+  "Agrícola / Forestal":"#319d64",
+  "Agricola / Forestal":"#319d64",
+  "Aeronaves":"#40242d",
+  "Otros":"#385e56"
 };
+
 const OPP_SEGS=["Turismo / Racing","Autob\u00fas / Cami\u00f3n","Motocicletas","Montacargas","Construcci\u00f3n / Industrial","Agr\u00edcola / Forestal"];
 const FALLBACK_COLORS=["#40242d"];
 let fallbackIdx=0;
@@ -492,6 +519,39 @@ function rankDeltaHtml(cur,prev){
 // --- Entradas y salidas de competidores ---------------------------------
 // Ojo con la lectura: el JSON guarda los 30 mayores importadores por anio,
 // asi que esto son movimientos dentro del top 30, no altas y bajas de aduana.
+// --- Resumen ejecutivo ---------------------------------------------------
+// Se redacta con los mismos numeros que ya calculan las secciones de abajo,
+// para que no puedan contradecirse.
+function renderResumen(d,yr,CMP){
+  const cont=document.getElementById("resumen-cuerpo");if(!cont)return;
+  const total=d.total_qty,ll=d.ll_qty,share=ll/total*100;
+  const lineas=[];
+  const per=CMP&&!CMP.full?("("+CMP.label.replace(/\s*\d{4}$/,"")+" de "+yr+")"):"";
+  lineas.push(`Ling Long importó <strong>${fmt(ll)} unidades</strong> en ${yr}${per?" "+per:""}, el <strong>${share.toFixed(1)}%</strong> del mercado, en posición <strong>#${d.ll_rank}</strong>.`);
+  if(CMP){
+    const dLL=(ll-CMP.ll)/CMP.ll*100, dMk=(total-CMP.mkt)/CMP.mkt*100;
+    const gana=dLL>dMk;
+    lineas.push(`Frente a ${CMP.label}, Ling Long ${dLL>=0?"crece":"cae"} un <strong>${Math.abs(dLL).toFixed(1)}%</strong> mientras el mercado ${dMk>=0?"crece":"cae"} un <strong>${Math.abs(dMk).toFixed(1)}%</strong>: ${gana?"gana terreno":"pierde terreno"} frente a la competencia.`);
+  }
+  // hueco mas valioso, mismo criterio que el mapa de oportunidad
+  const segs=Object.keys(d.seg_mkt||{}).filter(k=>(d.seg_mkt[k].qty||0)>0);
+  const cand=segs.map(k=>{const m=d.seg_mkt[k],l=(d.seg_ll&&d.seg_ll[k])||{qty:0};
+      return {k,sh:m.qty?l.qty/m.qty*100:0,cif:m.cif||0,qty:m.qty};})
+    .filter(o=>o.sh<share).sort((a,b)=>b.cif-a.cif);
+  if(cand[0]){
+    const t=cand[0];
+    lineas.push(`El hueco más valioso es <strong>${t.k}</strong>: ${fmtK(t.cif)} CIF y solo un ${t.sh.toFixed(1)}% de cuota. Igualar ahí la media daría unas <strong>${fmt(t.qty*(share-t.sh)/100)} unidades</strong>.`);
+  }
+  if(CMP){
+    const cur=impWindowMap(d,CMP.m0,CMP.m1,CMP.full),prev=CMP.impMap;
+    const ent=Object.keys(cur).filter(n=>cur[n]>0&&!(prev[n]>0));
+    const sal=Object.keys(prev).filter(n=>prev[n]>0&&!(cur[n]>0));
+    if(ent.length||sal.length)
+      lineas.push(`Entre los 30 mayores importadores <strong>entran ${ent.length}</strong> y <strong>salen ${sal.length}</strong>.`);
+  }
+  cont.innerHTML=lineas.map(t=>`<div class="res-linea"><span class="res-punto"></span><span>${t}</span></div>`).join("");
+}
+
 function renderMovimientos(d,yr,CMP){
   const inB=document.getElementById("mov-in-tbody"),outB=document.getElementById("mov-out-tbody");
   if(!inB||!outB)return;
@@ -559,7 +619,7 @@ function renderOportunidad(d){
             "Mercado: "+fmt(p._mkt)+" uds  ("+fmtK(p._cif)+" CIF)",
             "Ling Long: "+fmt(p._ll)+" uds",
             "Cuota: "+p.y.toFixed(1)+"%"];}}}},
-      scales:{x:{type:"logarithmic",title:{display:true,text:"Tamano del segmento (unidades, escala log)",color:"#888780",font:{size:11}},
+      scales:{x:{type:"logarithmic",title:{display:true,text:"Tamaño del segmento (unidades, escala log)",color:"#888780",font:{size:11}},
                  grid:{color:"#e1e0d9"},ticks:{color:"#888780",font:{size:10},callback:v=>{
                    const l=Math.log10(v);return Math.abs(l-Math.round(l))<0.01?(v>=1000?(v/1000)+"k":v):"";}}},
               y:{title:{display:true,text:"Cuota de Ling Long en el segmento (%)",color:"#888780",font:{size:11}},
@@ -605,6 +665,7 @@ function renderAll(yr){
     :"";
   document.getElementById("kpi-rank-delta").innerHTML=CMP?rankDeltaHtml(d.ll_rank,CMP.rank):"";
   const thD=document.getElementById("imp-th-delta");if(thD)thD.textContent=CMP?"vs "+CMP.label:"Variacion";
+  renderResumen(d,yr,CMP);
   renderMovimientos(d,yr,CMP);
   renderOportunidad(d);
   const leader=d.top_imp[0];
@@ -622,8 +683,8 @@ function renderAll(yr){
   document.getElementById("insight-pie").innerHTML=`<strong>Distribuidora Ling Long ocupa el #${d.ll_rank} del mercado</strong> con ${fmt(llQty)} unidades (${share}%). Los tres primeros importadores acaparan el <strong>${top3Share}% del mercado total</strong>.`;
 
   // Ranking table
-  ce("imp-table");const maxQ=d.top_imp[0][1];
-  d.top_imp.slice(0,15).forEach((r,i)=>{const pct=(r[1]/total*100).toFixed(2),bw=Math.round(r[1]/maxQ*100),ll=isLL(r[0]),color=getColor(r[0]);const tr=document.createElement("tr");if(ll)tr.className="ling-long";tr.innerHTML=`<td style="color:#888780">${i+1}</td><td>${r[0]}${ll?" &#9733;":""}</td><td style="text-align:right;font-variant-numeric:tabular-nums">${fmt(r[1])}</td><td style="text-align:right">${CMP?deltaHtml(r[1],CMP.impMap[r[0]]):""}</td><td style="text-align:right">${pct}%</td><td><div class="bar-bg"><div class="bar-fill" style="width:${bw}%;background:${color}"></div></div></td>`;document.getElementById("imp-table").appendChild(tr);});
+  ce("imp-table");
+  d.top_imp.slice(0,15).forEach((r,i)=>{const pct=(r[1]/total*100).toFixed(2),ll=isLL(r[0]);const tr=document.createElement("tr");if(ll)tr.className="ling-long";tr.innerHTML=`<td style="color:#888780">${i+1}</td><td>${r[0]}${ll?" &#9733;":""}</td><td style="text-align:right;font-variant-numeric:tabular-nums">${fmt(r[1])}</td><td style="text-align:right">${CMP?deltaHtml(r[1],CMP.impMap[r[0]]):""}</td><td style="text-align:right">${pct}%</td>`;document.getElementById("imp-table").appendChild(tr);});
 
   // Line chart
   ce("legend-line");ce("monthly-tbody");
@@ -798,6 +859,12 @@ function applyFilter(){
 
 const PROF_COLORS=["#2a78d6","#eb6834","#1baf7a","#eda100","#4a3aa7","#e34948","#e87ba4","#008300","#888780","#5f5e5a"];
 
+function showProfLine(on){
+  const w=document.getElementById("prof-line-wrap");if(!w)return;
+  document.getElementById("prof-line-title").style.display=on?"":"none";
+  w.querySelector(".cwrap").style.display=on?"":"none";
+  document.getElementById("prof-line-nota").style.display=on?"none":"block";
+}
 function profKpi(label,value,sub,blue){
   return `<div class="kpi"><div class="kpi-label">${label}</div><div class="kpi-value${blue?" blue":""}">${value}</div><div class="kpi-sub">${sub}</div></div>`;
 }
@@ -830,6 +897,7 @@ function renderImpProfile(name){
   rcf("profDonutChart");
   filterCharts.donut=new Chart(document.getElementById("profDonutChart"),{type:"doughnut",data:{labels:segKeys,datasets:[{data:segKeys.map(k=>prof.seg[k][0]),backgroundColor:segKeys.map(k=>getTipoColor(k)),borderWidth:2,borderColor:"#fff"}]},options:{responsive:true,maintainAspectRatio:false,cutout:"50%",plugins:{legend:{display:true,position:"bottom",labels:{font:{size:9},boxWidth:10}},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${fmt(ctx.parsed)} uds (${(ctx.parsed/prof.total_qty*100).toFixed(1)}%)`}}}}});
   // Line chart — monthly
+  showProfLine(true);
   rcf("profLineChart");
   filterCharts.line=new Chart(document.getElementById("profLineChart"),{type:"line",data:{labels:MONTHS,datasets:[{label:name,data:prof.monthly,borderColor:"#2a78d6",backgroundColor:"#2a78d618",borderWidth:2.5,pointRadius:4,tension:0.35,fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${fmt(ctx.parsed.y)} uds`}}},scales:{x:{grid:{display:false},ticks:{color:"#888780",font:{size:10}}},y:{grid:{color:"#e1e0d9"},ticks:{color:"#888780",font:{size:10},callback:v=>v>=1000?(v/1000).toFixed(0)+"k":v}}}}});
   // Table
@@ -856,6 +924,7 @@ function renderExpProfile(name){
   const segKeys=Object.keys(prof.seg).sort((a,b)=>prof.seg[b][0]-prof.seg[a][0]);
   rcf("profDonutChart");
   filterCharts.donut=new Chart(document.getElementById("profDonutChart"),{type:"doughnut",data:{labels:segKeys,datasets:[{data:segKeys.map(k=>prof.seg[k][0]),backgroundColor:segKeys.map(k=>getTipoColor(k)),borderWidth:2,borderColor:"#fff"}]},options:{responsive:true,maintainAspectRatio:false,cutout:"50%",plugins:{legend:{display:true,position:"bottom",labels:{font:{size:9},boxWidth:10}},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${fmt(ctx.parsed)} uds (${(ctx.parsed/prof.total_qty*100).toFixed(1)}%)`}}}}});
+  showProfLine(true);
   rcf("profLineChart");
   filterCharts.line=new Chart(document.getElementById("profLineChart"),{type:"line",data:{labels:MONTHS,datasets:[{label:name,data:prof.monthly,borderColor:"#eb6834",backgroundColor:"#eb683418",borderWidth:2.5,pointRadius:4,tension:0.35,fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${fmt(ctx.parsed.y)} uds`}}},scales:{x:{grid:{display:false},ticks:{color:"#888780",font:{size:10}}},y:{grid:{color:"#e1e0d9"},ticks:{color:"#888780",font:{size:10},callback:v=>v>=1000?(v/1000).toFixed(0)+"k":v}}}}});
   document.getElementById("prof-thead").innerHTML="<tr><th>#</th><th>Importador en Panama</th><th style='text-align:right'>Unidades</th><th style='text-align:right'>%</th><th style='text-align:right'>$/ud CIF</th></tr>";
@@ -893,8 +962,16 @@ function renderSegProfile(seg){
   rcf("profDonutChart");
   filterCharts.donut=new Chart(document.getElementById("profDonutChart"),{type:"doughnut",data:{labels:segExpData.map(r=>r[0]),datasets:[{data:segExpData.map(r=>r[1]),backgroundColor:PROF_COLORS.slice(0,segExpData.length),borderWidth:2,borderColor:"#fff"}]},options:{responsive:true,maintainAspectRatio:false,cutout:"50%",plugins:{legend:{display:true,position:"bottom",labels:{font:{size:9},boxWidth:10}},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${fmt(ctx.parsed)} uds`}}}}});
   // Monthly from mkt (approximate from all importers in seg_top)
-  rcf("profLineChart");
-  filterCharts.line=new Chart(document.getElementById("profLineChart"),{type:"line",data:{labels:MONTHS,datasets:[{label:"Mercado "+seg,data:MONTHS.map((_,m)=>{const mQty=d.monthly_mkt_qty[m]||0;return 0;}),borderColor:getTipoColor(seg)||"#888780",backgroundColor:"#88878018",borderWidth:2,pointRadius:3,tension:0.35,fill:true,spanGaps:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:"#888780",font:{size:10}}},y:{grid:{color:"#e1e0d9"},ticks:{color:"#888780",font:{size:10},callback:v=>v>=1000?(v/1000).toFixed(0)+"k":v}}}}});
+  // El JSON no trae desglose mensual por sub-partida. Antes se dibujaba una linea
+  // de doce ceros, que es peor que no dibujar nada: parecia un dato real.
+  const segMon=(d.seg_monthly&&d.seg_monthly[seg])||null;
+  if(segMon){
+    showProfLine(true);
+    rcf("profLineChart");
+    filterCharts.line=new Chart(document.getElementById("profLineChart"),{type:"line",data:{labels:MONTHS,datasets:[{label:"Mercado "+seg,data:segMon,borderColor:getTipoColor(seg)||"#888780",backgroundColor:"#88878018",borderWidth:2,pointRadius:3,tension:0.35,fill:true,spanGaps:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${fmt(ctx.parsed.y)} uds`}}},scales:{x:{grid:{display:false},ticks:{color:"#888780",font:{size:10}}},y:{grid:{color:"#e1e0d9"},ticks:{color:"#888780",font:{size:10},callback:v=>v>=1000?(v/1000).toFixed(0)+"k":v}}}}});
+  } else {
+    showProfLine(false);
+  }
   document.getElementById("prof-thead").innerHTML="<tr><th>#</th><th>Importador</th><th style='text-align:right'>Unidades</th><th style='text-align:right'>% del seg.</th><th style='text-align:right'>$/ud CIF</th></tr>";
   const tb=document.getElementById("prof-tbody");tb.innerHTML="";
   segTopData.forEach((r,i)=>{const ll=isLL(r[0]);const avg2=r[1]>0?r[2]/r[1]:0;const tr=document.createElement("tr");if(ll)tr.className="ling-long";tr.innerHTML=`<td style="color:#888780">${i+1}</td><td style="font-size:11px"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${getColor(r[0])};margin-right:5px;vertical-align:middle"></span>${r[0]}${ll?" &#9733;":""}</td><td style="text-align:right;font-variant-numeric:tabular-nums">${fmt(r[1])}</td><td style="text-align:right">${qty>0?(r[1]/qty*100).toFixed(1):0}%</td><td style="text-align:right;font-weight:600">$${avg2.toFixed(2)}</td>`;tb.appendChild(tr);});
