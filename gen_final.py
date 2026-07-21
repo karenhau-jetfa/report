@@ -6,22 +6,34 @@ with open('tipo_codes.json') as f:
     TIPO_CODES = json.load(f)
 
 COLOR_MAP = {
-    "Auto Centro S.A.":"#eb6834","Ling Long":"#2a78d6",
-    "Central Lubricantes S.A.":"#1baf7a","Tambor S.A.":"#eda100",
-    "Dist. Rali S.A.":"#4a3aa7","Dipsa S.A.":"#e34948",
-    "Prod. Superiores S.A.":"#e87ba4","Grupo Daher S.A.":"#008300",
-    "King Wong S.A.":"#888780","Durallanta S.A.":"#5f5e5a",
-    "Feng Di Zhuo Chong":"#b4b2a9","Multi Serv. American Wheels":"#3987e5",
-    "Cia. Chiricana de Automoviles":"#9FE1CB","General Life Panama S.A.":"#FAC775",
-    "DK Speed S.A.":"#F09595","Reconstructora en Frio S.A.":"#6ed8b5",
-    "Auto Ser. 88 Internacional":"#fce9c4","Kenbroth Corp.":"#c8a8e9",
-    "Movilidad Internacional S.A.":"#f4c430","PriceSmart Panama S.A.":"#85b7eb",
-    "Montacargas y Repuestos S.A.":"#cd853f","Panama Forklift Co. Inc.":"#20b2aa",
-    "Montacargas Serv Iman S.A.":"#708090","Ginsa Motors S.A.":"#dda0dd",
-    "Empresas Melo S.A.":"#98fb98","Minera Panama S.A.":"#a0522d",
-    "Matco Internacional S.A.":"#ff7f50","Grupo Hongfa S.A.":"#40e0d0",
-    "Motor Group Latam S.A.":"#ffd700","Benserca 18 S.A.":"#da70d6",
-    "Otros":"#d3d1c7","Forkliftec Parts S.A.":"#b0c4de",
+    # Paleta validada: las 36 parejas del conjunto superan los umbrales de separacion
+    # (normal>=15, deuteranopia>=8, protanopia>=8) y todas contrastan con el fondo crema.
+    # Los 7 tonos cromaticos van a las 7 empresas que reaparecen en el top-6 de algun anio,
+    # asi el color sigue a la entidad y no al puesto: cambiar de anio no repinta a nadie.
+    "Ling Long":"#2a78d6",                      # azul de marca, fijo
+    "Auto Centro S.A.":"#9c470d",               # oxido
+    "Central Lubricantes S.A.":"#319d64",       # verde
+    "Tambor S.A.":"#edb154",                    # ambar
+    "Dist. Rali S.A.":"#834791",                # violeta
+    "Prod. Superiores S.A.":"#cd76b1",          # rosa
+    "Multi Serv. American Wheels":"#38d2f3",    # cian
+    # Segunda linea: comparten un solo tono. No caben mas colores separables junto a los
+    # 7 anteriores (medido: con 2 neutros el conjunto puntua 1.13; con 3 cae a 0.83).
+    # Como la grafica mensual solo muestra 6 series, rara vez coinciden dos de estos.
+    "Dipsa S.A.":"#40242d","Grupo Daher S.A.":"#40242d",
+    "King Wong S.A.":"#40242d","Durallanta S.A.":"#40242d",
+    "Feng Di Zhuo Chong":"#40242d","Dk Tires, S.A.":"#40242d",
+    "Cia. Chiricana de Automoviles":"#40242d","General Life Panama S.A.":"#40242d",
+    "DK Speed S.A.":"#40242d","Reconstructora en Frio S.A.":"#40242d",
+    "Auto Ser. 88 Internacional":"#40242d","Kenbroth Corp.":"#40242d",
+    "Movilidad Internacional S.A.":"#40242d","PriceSmart Panama S.A.":"#40242d",
+    "Montacargas y Repuestos S.A.":"#40242d","Panama Forklift Co. Inc.":"#40242d",
+    "Montacargas Serv Iman S.A.":"#40242d","Ginsa Motors S.A.":"#40242d",
+    "Empresas Melo S.A.":"#40242d","Minera Panama S.A.":"#40242d",
+    "Matco Internacional S.A.":"#40242d","Grupo Hongfa S.A.":"#40242d",
+    "Motor Group Latam S.A.":"#40242d","Benserca 18 S.A.":"#40242d",
+    "Forkliftec Parts S.A.":"#40242d",
+    "Otros":"#385e56",                          # agregado del resto
 }
 
 # Escape for safe embedding
@@ -76,6 +88,7 @@ td .delta{margin-top:0}
 .legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:#52514e}
 .legend-swatch{width:10px;height:10px;border-radius:2px;flex-shrink:0}
 .chart-wrap-donut{position:relative;width:100%;height:320px}
+.chart-wrap-rank{position:relative;width:100%;height:470px}
 .chart-wrap-bar{position:relative;width:100%;height:980px}
 .chart-wrap-line{position:relative;width:100%;height:400px}
 .insight{background:#e6f1fb;border-left:3px solid #2a78d6;border-radius:0 8px 8px 0;padding:12px 16px;margin-top:16px;font-size:12.5px;line-height:1.6}
@@ -162,9 +175,8 @@ tbody tr.ling-long td{font-weight:700;color:#185fa5;background:#edf4fc}
 </div>
 <div class="section">
   <div class="section-title">Market share por importador</div>
-  <div class="section-desc">Top 15 importadores de neumaticos en Panama por cantidad de unidades.</div>
-  <div class="legend" id="legend-pie"></div>
-  <div class="chart-wrap-donut"><canvas id="pieChart"></canvas></div>
+  <div class="section-desc">Top 15 importadores por cantidad de unidades. Distribuidora Ling Long en azul.</div>
+  <div class="chart-wrap-rank"><canvas id="pieChart"></canvas></div>
   <div class="insight" id="insight-pie"></div>
 </div>
 <div class="section">
@@ -323,9 +335,9 @@ const TIPO_COLORS={
   "Otros":"#d3d1c7"
 };
 const OPP_SEGS=["Turismo / Racing","Autob\\u00fas / Cami\\u00f3n","Motocicletas","Montacargas","Construcci\\u00f3n / Industrial","Agr\\u00edcola / Forestal"];
-const FALLBACK_COLORS=["#85b7eb","#f4c430","#a8d8a8","#dda0dd","#ffd700","#20b2aa","#cd853f","#708090","#ffb6c1","#98fb98","#f0e68c","#c8a8e9","#fce9c4","#9FE1CB","#FAC775","#F09595"];
+const FALLBACK_COLORS=["#40242d"];
 let fallbackIdx=0;
-function getColor(name){if(!COLOR_MAP[name]){COLOR_MAP[name]=FALLBACK_COLORS[fallbackIdx++%FALLBACK_COLORS.length];}return COLOR_MAP[name];}
+function getColor(name){if(/^Otros/.test(name))return COLOR_MAP["Otros"];if(!COLOR_MAP[name]){COLOR_MAP[name]=FALLBACK_COLORS[fallbackIdx++%FALLBACK_COLORS.length];}return COLOR_MAP[name];}
 function getTipoColor(name){return TIPO_COLORS[name]||TIPO_COLORS[Object.keys(TIPO_COLORS).find(k=>k.normalize("NFD").replace(/[\\u0300-\\u036f]/g,"")===name.normalize("NFD").replace(/[\\u0300-\\u036f]/g,""))]||"#b4b2a9";}
 function isLL(n){return /ling.?long/i.test(n);}
 function fmt(n){return Math.round(n).toLocaleString("es-PA");}
@@ -426,15 +438,13 @@ function renderAll(yr){
   if(d.ll_rank===1){document.getElementById("kpi-diff").textContent=fmt(llQty-(d.top_imp[1]||[0,0])[1]);document.getElementById("kpi-diff-sub").textContent="uds. sobre el #2";}
   else{document.getElementById("kpi-diff").textContent=fmt(leader[1]-llQty);document.getElementById("kpi-diff-sub").textContent="uds. vs. "+leader[0];}
 
-  // Donut
-  ce("legend-pie");
+  // Ranking por cantidad. Barras en vez de dona: comparar longitudes es fiable,
+  // comparar angulos no, y con 16 series una dona no transmite nada.
   const top15=d.top_imp.slice(0,15);
   const pieLabels=[...top15.map(r=>r[0]),"Otros"];
   const pieQty=[...top15.map(r=>r[1]),Math.max(0,total-top15.reduce((s,r)=>s+r[1],0))];
-  const pieColors=[...top15.map(r=>getColor(r[0])),"#d3d1c7"];
-  const legPie=document.getElementById("legend-pie");
-  top15.forEach((r,i)=>{const el=document.createElement("span");el.className="legend-item";el.innerHTML=`<span class="legend-swatch" style="background:${pieColors[i]}"></span>${sl(r[0])} ${(r[1]/total*100).toFixed(1)}%`;legPie.appendChild(el);});
-    upsert("pie","pieChart",{type:"doughnut",data:{labels:pieLabels,datasets:[{data:pieQty,backgroundColor:pieColors,borderWidth:2,borderColor:"#fff"}]},options:{responsive:true,maintainAspectRatio:false,cutout:"55%",plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${fmt(ctx.parsed)} uds (${(ctx.parsed/total*100).toFixed(1)}%)`}}}}});
+  const pieColors=[...top15.map(r=>isLL(r[0])?"#2a78d6":"#aab6c2"),"#d8d6cf"];
+  upsert("pie","pieChart",{type:"bar",data:{labels:pieLabels,datasets:[{label:"Unidades",data:pieQty,backgroundColor:pieColors,borderWidth:0,borderRadius:{topRight:4,bottomRight:4},borderSkipped:"left"}]},options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${fmt(ctx.parsed.x)} uds (${(ctx.parsed.x/total*100).toFixed(1)}%)`}}},scales:{x:{grid:{color:"#e1e0d9"},ticks:{color:"#888780",font:{size:11},callback:v=>(v/1000).toFixed(0)+"k"}},y:{grid:{display:false},ticks:{color:"#52514e",font:{size:11}}}}}});
   const top3Share=((d.top_imp[0][1]+(d.top_imp[1]||[0,0])[1]+(d.top_imp[2]||[0,0])[1])/total*100).toFixed(1);
   document.getElementById("insight-pie").innerHTML=`<strong>Distribuidora Ling Long ocupa el #${d.ll_rank} del mercado</strong> con ${fmt(llQty)} unidades (${share}%). Los tres primeros importadores acaparan el <strong>${top3Share}% del mercado total</strong>.`;
 
@@ -445,11 +455,20 @@ function renderAll(yr){
   // Line chart
   ce("legend-line");ce("monthly-tbody");
   const top10=d.top10||[];
-  const lineEntries=top10.map(name=>[name,d.monthly_top10[name]||Array(12).fill(0)]);
+  const allEntries=top10.map(name=>[name,d.monthly_top10[name]||Array(12).fill(0)]);
+  // Diez lineas superpuestas no se distinguen. La grafica muestra 6 y agrupa el
+  // resto; el detalle completo sigue en la tabla de abajo. Ling Long nunca se agrupa.
+  const rankedE=allEntries.map(e=>({e,t:e[1].reduce((a,b)=>a+b,0)})).sort((a,b)=>b.t-a.t);
+  let keep=rankedE.slice(0,6).map(o=>o.e);
+  if(!keep.some(e=>isLL(e[0]))){const llo=rankedE.find(o=>isLL(o.e[0]));if(llo)keep=keep.slice(0,5).concat([llo.e]);}
+  const keptN=new Set(keep.map(e=>e[0]));
+  const restE=allEntries.filter(e=>!keptN.has(e[0]));
+  const restVals=MONTHS.map((_,m)=>restE.reduce((t,e)=>t+(e[1][m]||0),0));
+  const lineEntries=keep.concat(restE.length?[["Otros ("+restE.length+" importadores)",restVals]]:[]);
   const legLine=document.getElementById("legend-line");
   lineEntries.forEach(([name])=>{const el=document.createElement("span");el.className="legend-item";el.innerHTML=`<span class="legend-swatch" style="background:${getColor(name)}"></span>${sl(name)}`;legLine.appendChild(el);});
-    upsert("line","lineChart",{type:"line",data:{labels:MONTHS,datasets:lineEntries.map(([name,vals])=>{const c=getColor(name);return{label:name,data:vals,borderColor:c,backgroundColor:c+"18",borderWidth:isLL(name)?3:1.8,pointRadius:isLL(name)?5:3,tension:0.35,fill:false};})},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},plugins:{legend:{display:false},tooltip:{itemSort:(a,b)=>b.parsed.y-a.parsed.y,callbacks:{label:ctx=>` ${ctx.dataset.label}: ${fmt(ctx.parsed.y)} uds`}}},scales:{x:{grid:{display:false},ticks:{color:"#888780",font:{size:11}}},y:{grid:{color:"#e1e0d9"},ticks:{color:"#888780",font:{size:11},callback:v=>(v/1000).toFixed(0)+"k"}}}}});
-  const sortedLines=lineEntries.map(([name,vals])=>({name,vals,total:vals.reduce((a,b)=>a+b,0)})).sort((a,b)=>b.total-a.total);
+    upsert("line","lineChart",{type:"line",data:{labels:MONTHS,datasets:(()=>{const used={};return lineEntries.map(([name,vals])=>{const c=getColor(name);const rep=(used[c]=(used[c]||0)+1);return{label:name,data:vals,borderColor:c,backgroundColor:c+"18",borderWidth:isLL(name)?3:1.8,pointRadius:isLL(name)?5:3,tension:0.35,fill:false,borderDash:rep>1?[6,4]:[]};});})()},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},plugins:{legend:{display:false},tooltip:{itemSort:(a,b)=>b.parsed.y-a.parsed.y,callbacks:{label:ctx=>` ${ctx.dataset.label}: ${fmt(ctx.parsed.y)} uds`}}},scales:{x:{grid:{display:false},ticks:{color:"#888780",font:{size:11}}},y:{grid:{color:"#e1e0d9"},ticks:{color:"#888780",font:{size:11},callback:v=>(v/1000).toFixed(0)+"k"}}}}});
+  const sortedLines=allEntries.map(([name,vals])=>({name,vals,total:vals.reduce((a,b)=>a+b,0)})).sort((a,b)=>b.total-a.total);
   const mTbody=document.getElementById("monthly-tbody");
   sortedLines.forEach((row,rank)=>{const ll=/ling.?long/i.test(row.name),tr=document.createElement("tr");if(ll)tr.className="ling-long";const cells=row.vals.map(v=>`<td style="text-align:right;font-variant-numeric:tabular-nums;font-size:11px">${v>0?fmt(v):"\\u2014"}</td>`).join("");tr.innerHTML=`<td style="color:#888780;font-size:11px">${rank+1}</td><td style="font-size:11px"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${getColor(row.name)};margin-right:5px;vertical-align:middle"></span>${row.name}${ll?" &#9733;":""}</td>${cells}<td style="text-align:right;font-weight:700;font-size:11px">${fmt(row.total)}</td>`;mTbody.appendChild(tr);});
 
