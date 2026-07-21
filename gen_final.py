@@ -187,6 +187,11 @@ tbody tr.ling-long td{font-weight:700;color:#185fa5;background:#edf4fc}
 .footer p{font-size:11px;color:#b4b2a9}
 .seg-card{background:#fff;border-radius:10px;border:0.5px solid #d3d1c7;padding:14px 16px}
 
+.mov-h{font-size:12px;font-weight:700;margin-bottom:2px;display:flex;align-items:center;gap:6px}
+.mov-h span{font-weight:400;font-size:11px;color:#888780}
+.mov-in{color:#0d7a52}
+.mov-out{color:#b8322f}
+
 /* --- Herramientas de tabla ---------------------------------------------- */
 .tbl-tools{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin:12px 0 0;flex-wrap:wrap}
 .tbl-search{flex:0 1 200px;padding:5px 10px;border:1px solid #d3d1c7;border-radius:7px;
@@ -198,9 +203,9 @@ tbody tr.ling-long td{font-weight:700;color:#185fa5;background:#edf4fc}
 .tbl-csv:hover{border-color:#2a78d6;color:#2a78d6}
 table[data-tools*="sort"] thead th{cursor:pointer;user-select:none;position:relative;padding-right:18px!important}
 table[data-tools*="sort"] thead th:hover{color:#2a78d6}
-table[data-tools*="sort"] thead th::after{content:"\2195";position:absolute;right:6px;opacity:.25;font-size:10px}
-th.sorted-asc::after{content:"\2191";opacity:1;color:#2a78d6}
-th.sorted-desc::after{content:"\2193";opacity:1;color:#2a78d6}
+table[data-tools*="sort"] thead th::after{content:"↕";position:absolute;right:6px;opacity:.25;font-size:10px}
+th.sorted-asc::after{content:"↑";opacity:1;color:#2a78d6}
+th.sorted-desc::after{content:"↓";opacity:1;color:#2a78d6}
 @media (max-width:620px){.tbl-tools{justify-content:stretch}.tbl-search{flex:1 1 auto}}
 
 /* --- Navegacion pegajosa ------------------------------------------------ */
@@ -311,7 +316,7 @@ tbody tr.ling-long:hover td{background:#e2edfb}
     <button class="year-btn" onclick="switchYear(2026)" style="border-style:dashed">2026 <span style="font-size:10px;font-weight:400">ene&ndash;may</span></button>
   </div>
 </header>
-<nav class="secnav" id="secnav" aria-label="Secciones del reporte"><div class="secnav-inner"><a href="#sec-mercado">Mercado</a><a href="#sec-importadores">Importadores</a><a href="#sec-mensual">Mensual</a><a href="#sec-exportadores">Exportadores</a><a href="#sec-precios">Precios</a><a href="#sec-segmentos">Segmentos</a><a href="#sec-origenes">Origenes</a><a href="#sec-hk">HK Tiancheng</a><a href="#sec-proveedores">Proveedores LL</a><a href="#sec-posicion">Posicion LL</a><a href="#sec-nomenclatura">Nomenclatura</a></div></nav>
+<nav class="secnav" id="secnav" aria-label="Secciones del reporte"><div class="secnav-inner"><a href="#sec-mercado">Mercado</a><a href="#sec-importadores">Importadores</a><a href="#sec-mensual">Mensual</a><a href="#sec-exportadores">Exportadores</a><a href="#sec-precios">Precios</a><a href="#sec-segmentos">Segmentos</a><a href="#sec-origenes">Origenes</a><a href="#sec-hk">HK Tiancheng</a><a href="#sec-proveedores">Proveedores LL</a><a href="#sec-posicion">Posicion LL</a><a href="#sec-movimientos">Movimientos</a><a href="#sec-oportunidad">Oportunidad</a><a href="#sec-nomenclatura">Nomenclatura</a></div></nav>
 <main id="report-main">
 <div class="kpi-row">
   <div class="kpi"><div class="kpi-label">Total mercado</div><div class="kpi-value" id="kpi-total">&#8212;</div><div class="kpi-sub">unidades importadas</div><div id="kpi-total-delta"></div></div>
@@ -435,6 +440,27 @@ tbody tr.ling-long:hover td{background:#e2edfb}
   </div>
   <p style="font-size:12px;font-weight:600;margin-bottom:12px">Competidores por segmento de oportunidad</p>
   <div class="grid-2" id="comp-cards"></div>
+</div>
+<div class="section" id="sec-movimientos">
+  <div class="section-title">Entradas y salidas de competidores</div>
+  <div class="section-desc" id="mov-desc">Importadores que aparecen o desaparecen respecto al periodo comparable.</div>
+  <div class="grid-2">
+    <div>
+      <p class="mov-h mov-in">Entran <span id="mov-in-n"></span></p>
+      <div class="table-wrap"><table data-tools="sort,csv" data-name="entradas"><thead><tr><th>Importador</th><th style="text-align:right">Unidades</th><th style="text-align:right">% mercado</th></tr></thead><tbody id="mov-in-tbody"></tbody></table></div>
+    </div>
+    <div>
+      <p class="mov-h mov-out">Salen <span id="mov-out-n"></span></p>
+      <div class="table-wrap"><table data-tools="sort,csv" data-name="salidas"><thead><tr><th>Importador</th><th style="text-align:right" id="mov-out-th">Unidades antes</th><th style="text-align:right">% de entonces</th></tr></thead><tbody id="mov-out-tbody"></tbody></table></div>
+    </div>
+  </div>
+  <div class="insight" id="insight-mov"></div>
+</div>
+<div class="section" id="sec-oportunidad">
+  <div class="section-title">Mapa de oportunidad por segmento</div>
+  <div class="section-desc">Cada burbuja es un segmento. Horizontal: tamano del segmento en unidades (escala logaritmica, porque el mayor es 3.000 veces el menor). Vertical: cuota de Ling Long dentro de ese segmento. Tamano de la burbuja: valor CIF, o sea cuanto dinero mueve. Lo interesante esta abajo a la derecha: segmentos grandes y valiosos donde Ling Long pesa poco.</div>
+  <div class="cwrap" style="--h:420px"><canvas id="oportChart"></canvas></div>
+  <div class="insight" id="insight-oport"></div>
 </div>
 <div class="section" id="sec-nomenclatura">
   <div class="section-title">Nomenclatura arancelaria &#8212; Partida 4011</div>
@@ -585,6 +611,91 @@ function rankDeltaHtml(cur,prev){
   return `<span class="delta ${mv>0?"up":"down"}">${ar} ${Math.abs(mv)} puesto${Math.abs(mv)>1?"s":""}</span>`;
 }
 
+// --- Entradas y salidas de competidores ---------------------------------
+// Ojo con la lectura: el JSON guarda los 30 mayores importadores por anio,
+// asi que esto son movimientos dentro del top 30, no altas y bajas de aduana.
+function renderMovimientos(d,yr,CMP){
+  const inB=document.getElementById("mov-in-tbody"),outB=document.getElementById("mov-out-tbody");
+  if(!inB||!outB)return;
+  inB.innerHTML="";outB.innerHTML="";
+  const desc=document.getElementById("mov-desc");
+  if(!CMP){
+    document.getElementById("mov-in-n").textContent="";
+    document.getElementById("mov-out-n").textContent="";
+    desc.textContent="No hay anio anterior con el que comparar.";
+    document.getElementById("insight-mov").innerHTML="";
+    return;
+  }
+  desc.innerHTML="Movimientos dentro de los 30 mayores importadores, "+yr+" frente a "+CMP.label+
+    ". <em>No son altas y bajas de aduana: un importador puede seguir operando y haber salido del top 30.</em>";
+  document.getElementById("mov-out-th").textContent="Unidades en "+CMP.label;
+  const cur=impWindowMap(d,CMP.m0,CMP.m1,CMP.full),prev=CMP.impMap;
+  const prevTotal=CMP.mkt||1,curTotal=d.total_qty||1;
+  const entran=Object.keys(cur).filter(n=>cur[n]>0&&!(prev[n]>0)).sort((a,b)=>cur[b]-cur[a]);
+  const salen =Object.keys(prev).filter(n=>prev[n]>0&&!(cur[n]>0)).sort((a,b)=>prev[b]-prev[a]);
+  document.getElementById("mov-in-n").textContent="("+entran.length+")";
+  document.getElementById("mov-out-n").textContent="("+salen.length+")";
+  const fila=(n,q,tot,ll)=>`<tr${ll?' class="ling-long"':''}><td>${n}</td><td style="text-align:right;font-variant-numeric:tabular-nums">${fmt(q)}</td><td style="text-align:right">${(q/tot*100).toFixed(2)}%</td></tr>`;
+  inB.innerHTML = entran.length?entran.map(n=>fila(n,cur[n],curTotal,isLL(n))).join(""):'<tr><td colspan="3" style="color:#888780">Ninguno</td></tr>';
+  outB.innerHTML= salen.length ?salen.map(n=>fila(n,prev[n],prevTotal,isLL(n))).join(""):'<tr><td colspan="3" style="color:#888780">Ninguno</td></tr>';
+  const volIn=entran.reduce((t,n)=>t+cur[n],0),volOut=salen.reduce((t,n)=>t+prev[n],0);
+  document.getElementById("insight-mov").innerHTML=
+    `Entran <strong>${entran.length}</strong> importadores con ${fmt(volIn)} uds (${(volIn/curTotal*100).toFixed(1)}% del mercado) y salen <strong>${salen.length}</strong> que movian ${fmt(volOut)} uds (${(volOut/prevTotal*100).toFixed(1)}%). `+
+    (volIn>volOut?"El recambio aporta volumen neto: entra mas de lo que sale.":"El recambio resta volumen: sale mas de lo que entra.");
+  markSortableThs();
+}
+
+// --- Mapa de oportunidad por segmento -----------------------------------
+const hlinePlugin={id:"hline",afterDatasetsDraw(c,a,o){
+  if(!o||o.value==null)return;
+  const y=c.scales.y.getPixelForValue(o.value);
+  if(!isFinite(y))return;
+  const ctx=c.ctx,ca=c.chartArea;
+  ctx.save();
+  ctx.strokeStyle="#888780";ctx.lineWidth=1;ctx.setLineDash([5,4]);
+  ctx.beginPath();ctx.moveTo(ca.left,y);ctx.lineTo(ca.right,y);ctx.stroke();
+  ctx.setLineDash([]);ctx.fillStyle="#888780";ctx.font="10px -apple-system,sans-serif";
+  ctx.fillText(o.label,ca.left+6,y-5);
+  ctx.restore();
+}};
+function renderOportunidad(d){
+  const el=document.getElementById("oportChart");if(!el)return;
+  const segs=Object.keys(d.seg_mkt||{}).filter(k=>(d.seg_mkt[k].qty||0)>0);
+  if(!segs.length)return;
+  const maxCif=Math.max(...segs.map(k=>d.seg_mkt[k].cif||0))||1;
+  const global=d.ll_qty/d.total_qty*100;
+  const sets=segs.map(k=>{
+    const m=d.seg_mkt[k],ll=(d.seg_ll&&d.seg_ll[k])||{qty:0};
+    const share=m.qty?ll.qty/m.qty*100:0;
+    return {label:k,backgroundColor:getTipoColor(k)+"cc",borderColor:getTipoColor(k),borderWidth:1,
+      data:[{x:m.qty,y:+share.toFixed(2),r:5+22*Math.sqrt((m.cif||0)/maxCif),
+             _cif:m.cif||0,_ll:ll.qty||0,_mkt:m.qty}]};
+  });
+  upsert("oport","oportChart",{type:"bubble",data:{datasets:sets},plugins:[hlinePlugin],
+    options:{responsive:true,maintainAspectRatio:false,
+      layout:{padding:{right:34,top:14,left:4}},
+      plugins:{legend:{position:"bottom",labels:{usePointStyle:true,boxWidth:8,font:{size:10}}},
+        hline:{value:global,label:"cuota global de Ling Long "+global.toFixed(1)+"%"},
+        tooltip:{callbacks:{label:ctx=>{const p=ctx.raw;
+          return [ctx.dataset.label,
+            "Mercado: "+fmt(p._mkt)+" uds  ("+fmtK(p._cif)+" CIF)",
+            "Ling Long: "+fmt(p._ll)+" uds",
+            "Cuota: "+p.y.toFixed(1)+"%"];}}}},
+      scales:{x:{type:"logarithmic",title:{display:true,text:"Tamano del segmento (unidades, escala log)",color:"#888780",font:{size:11}},
+                 grid:{color:"#e1e0d9"},ticks:{color:"#888780",font:{size:10},callback:v=>{
+                   const l=Math.log10(v);return Math.abs(l-Math.round(l))<0.01?(v>=1000?(v/1000)+"k":v):"";}}},
+              y:{title:{display:true,text:"Cuota de Ling Long en el segmento (%)",color:"#888780",font:{size:11}},
+                 beginAtZero:true,grid:{color:"#e1e0d9"},ticks:{color:"#888780",font:{size:10},callback:v=>v+"%"}}}}});
+  // el mejor objetivo: mucho valor CIF donde la cuota esta por debajo de la global
+  const cand=segs.map(k=>{const m=d.seg_mkt[k],ll=(d.seg_ll&&d.seg_ll[k])||{qty:0};
+      return {k,share:m.qty?ll.qty/m.qty*100:0,cif:m.cif||0,qty:m.qty};})
+    .filter(o=>o.share<global).sort((a,b)=>b.cif-a.cif);
+  const t=cand[0];
+  document.getElementById("insight-oport").innerHTML = t
+    ? `<strong>El hueco mas valioso es ${t.k}</strong>: mueve ${fmtK(t.cif)} CIF sobre ${fmt(t.qty)} unidades, y Ling Long solo tiene el ${t.share.toFixed(1)}% frente al ${global.toFixed(1)}% que tiene en el conjunto del mercado. Llevarlo a la media global significaria unas <strong>${fmt(t.qty*(global-t.share)/100)} unidades</strong> mas.`
+    : `Ling Long esta por encima de su cuota global (${global.toFixed(1)}%) en todos los segmentos.`;
+}
+
 function renderAll(yr){
   const d=ALL_DATA[String(yr)];if(!d)return;
   const isPartial=!!d.partial;
@@ -616,6 +727,8 @@ function renderAll(yr){
     :"";
   document.getElementById("kpi-rank-delta").innerHTML=CMP?rankDeltaHtml(d.ll_rank,CMP.rank):"";
   const thD=document.getElementById("imp-th-delta");if(thD)thD.textContent=CMP?"vs "+CMP.label:"Variacion";
+  renderMovimientos(d,yr,CMP);
+  renderOportunidad(d);
   const leader=d.top_imp[0];
   if(d.ll_rank===1){document.getElementById("kpi-diff").textContent=fmt(llQty-(d.top_imp[1]||[0,0])[1]);document.getElementById("kpi-diff-sub").textContent="uds. sobre el #2";}
   else{document.getElementById("kpi-diff").textContent=fmt(leader[1]-llQty);document.getElementById("kpi-diff-sub").textContent="uds. vs. "+leader[0];}
