@@ -58,6 +58,14 @@ h1{font-size:26px;font-weight:700;margin-top:18px;color:#0b0b0b;letter-spacing:-
 .kpi-label{font-size:11px;color:#888780;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px}
 .kpi-value{font-size:24px;font-weight:700;line-height:1}
 .kpi-value.blue{color:#2a78d6}
+.delta{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;margin-top:5px}
+.delta.up{color:#0d7a52}
+.delta.down{color:#b8322f}
+.delta.flat{color:#888780}
+.delta.block{display:flex;margin-top:3px}
+.delta-ctx{font-size:10px;color:#b4b2a9;font-weight:400;margin-top:1px;white-space:nowrap}
+td .delta{margin-top:0}
+.cmp-banner{margin-top:10px;padding:8px 14px;border-radius:8px;font-size:12px;background:#e6f1fb;border:1px solid #a9cdf0;color:#185fa5}
 .kpi-sub{font-size:11px;color:#888780;margin-top:5px}
 .badge{display:inline-block;background:#e6f1fb;color:#185fa5;font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;margin-top:5px}
 .badge-code{display:inline-block;background:#f4f3f0;color:#52514e;font-size:9px;font-weight:600;padding:1px 6px;border-radius:4px;font-family:monospace;letter-spacing:0.3px}
@@ -101,7 +109,7 @@ tbody tr.ling-long td{font-weight:700;color:#185fa5;background:#edf4fc}
   </div>
   <h1 id="report-title">Mercado de Neumaticos en Panama 2025</h1>
   <p class="subtitle" id="report-subtitle">Partida arancelaria 4011 &middot; Importaciones enero&ndash;diciembre 2025 &middot; Fuente: Veritrade</p>
-  <div id="partial-banner" style="display:none;margin-top:10px;padding:8px 14px;background:#fff8e6;border:1px solid #f0c040;border-radius:8px;font-size:12px;color:#7a5800"><strong>&#9888; Año parcial:</strong> Los datos de 2026 corresponden únicamente a enero–mayo. Los totales no son comparables directamente con años completos.</div>
+  <div id="partial-banner" class="cmp-banner" style="display:none"></div>
   <div class="year-selector">
     <button class="year-btn" onclick="switchYear(2019)">2019</button>
     <button class="year-btn" onclick="switchYear(2020)">2020</button>
@@ -114,9 +122,9 @@ tbody tr.ling-long td{font-weight:700;color:#185fa5;background:#edf4fc}
   </div>
 </div>
 <div class="kpi-row">
-  <div class="kpi"><div class="kpi-label">Total mercado</div><div class="kpi-value" id="kpi-total">&#8212;</div><div class="kpi-sub">unidades importadas</div></div>
-  <div class="kpi"><div class="kpi-label">Dist. Ling Long</div><div class="kpi-value blue" id="kpi-ll">&#8212;</div><div class="kpi-sub">unidades importadas</div><div class="badge" id="kpi-share">&#8212;</div></div>
-  <div class="kpi"><div class="kpi-label">Posicion en mercado</div><div class="kpi-value blue" id="kpi-rank">&#8212;</div><div class="kpi-sub">de todos los importadores</div></div>
+  <div class="kpi"><div class="kpi-label">Total mercado</div><div class="kpi-value" id="kpi-total">&#8212;</div><div class="kpi-sub">unidades importadas</div><div id="kpi-total-delta"></div></div>
+  <div class="kpi"><div class="kpi-label">Dist. Ling Long</div><div class="kpi-value blue" id="kpi-ll">&#8212;</div><div class="kpi-sub">unidades importadas</div><div class="badge" id="kpi-share">&#8212;</div><div id="kpi-ll-delta"></div></div>
+  <div class="kpi"><div class="kpi-label">Posicion en mercado</div><div class="kpi-value blue" id="kpi-rank">&#8212;</div><div class="kpi-sub">de todos los importadores</div><div id="kpi-rank-delta"></div></div>
   <div class="kpi"><div class="kpi-label">Diferencia vs. lider</div><div class="kpi-value" id="kpi-diff">&#8212;</div><div class="kpi-sub" id="kpi-diff-sub">&#8212;</div></div>
 </div>
 <div class="section" id="filter-section">
@@ -162,7 +170,7 @@ tbody tr.ling-long td{font-weight:700;color:#185fa5;background:#edf4fc}
 <div class="section">
   <div class="section-title">Ranking de importadores por cantidad</div>
   <div class="section-desc">Top 15 importadores ordenados por volumen. &#9733; = Distribuidora Ling Long.</div>
-  <div class="table-wrap"><table><thead><tr><th style="width:36px">#</th><th>Importador</th><th style="text-align:right">Unidades</th><th style="text-align:right">Market Share</th><th style="width:130px">Volumen relativo</th></tr></thead><tbody id="imp-table"></tbody></table></div>
+  <div class="table-wrap"><table><thead><tr><th style="width:36px">#</th><th>Importador</th><th style="text-align:right">Unidades</th><th style="text-align:right" id="imp-th-delta">Variacion</th><th style="text-align:right">Market Share</th><th style="width:130px">Volumen relativo</th></tr></thead><tbody id="imp-table"></tbody></table></div>
 </div>
 <div class="section">
   <div class="section-title">Evolucion mensual &#8212; Top 10 importadores</div>
@@ -343,18 +351,77 @@ function upsert(key,id,cfg){
 }
 function ce(id){const el=document.getElementById(id);if(el)el.innerHTML="";}
 
+// --- Comparacion like-for-like -------------------------------------------
+// Un anio parcial no se compara contra un anio completo: se recorta la ventana
+// del anio anterior a los mismos meses. Las sumas mensuales cuadran exacto con
+// los totales, asi que el recorte es exacto.
+function lastMonthWithData(d){let last=-1;d.monthly_mkt_qty.forEach((v,i)=>{if(v>0)last=i;});return last<0?11:last;}
+function winSum(a,m0,m1){let t=0;for(let i=m0;i<=m1;i++)t+=a[i]||0;return t;}
+function impWindowMap(y,m0,m1,full){
+  const o={};
+  for(const [n,pr] of Object.entries(y.imp_profiles||{})) o[n]=full?pr.total_qty:winSum(pr.monthly,m0,m1);
+  return o;
+}
+function comparable(yr){
+  const d=ALL_DATA[String(yr)],pv=ALL_DATA[String(yr-1)];
+  if(!d||!pv)return null;
+  const m1=d.partial?lastMonthWithData(d):11,m0=0,full=(m1===11);
+  const win=full?"":MONTHS[m0]+"–"+MONTHS[m1]+" ";
+  const map=impWindowMap(pv,m0,m1,full);
+  let rank=null;
+  if(full){rank=pv.ll_rank;}
+  else{const arr=Object.entries(map).sort((a,b)=>b[1]-a[1]);const i=arr.findIndex(e=>isLL(e[0]));rank=i<0?null:i+1;}
+  return {full,m0,m1,label:win+(yr-1),
+    mkt:full?pv.total_qty:winSum(pv.monthly_mkt_qty,m0,m1),
+    ll:full?pv.ll_qty:winSum(pv.monthly_ll_qty,m0,m1),
+    rank:rank,impMap:map};
+}
+function deltaHtml(cur,prev,ctx){
+  if(prev==null||prev===0)return '<span class="delta flat">&#8212;</span>';
+  const pct=(cur-prev)/prev*100;
+  const cls=pct>0.05?"up":(pct<-0.05?"down":"flat");
+  const ar=cls==="up"?"▲":(cls==="down"?"▼":"=");
+  return `<span class="delta ${cls}">${ar} ${pct>0?"+":""}${pct.toFixed(1)}%</span>${ctx?`<div class="delta-ctx">${ctx}</div>`:""}`;
+}
+function rankDeltaHtml(cur,prev){
+  if(prev==null)return "";
+  const mv=prev-cur; // subir de puesto = numero mas bajo
+  if(mv===0)return '<span class="delta flat">= sin cambio</span>';
+  const ar=mv>0?"▲":"▼";
+  return `<span class="delta ${mv>0?"up":"down"}">${ar} ${Math.abs(mv)} puesto${Math.abs(mv)>1?"s":""}</span>`;
+}
+
 function renderAll(yr){
   const d=ALL_DATA[String(yr)];if(!d)return;
   const isPartial=!!d.partial;
   const partialLabel=d.partial_label||"parcial";
-  document.getElementById("report-title").textContent="Mercado de Neum\\u00e1ticos en Panam\\u00e1 "+yr+(isPartial?" ("+partialLabel+")":"");
+  document.getElementById("report-title").textContent="Mercado de Neum\\u00e1ticos en Panam\\u00e1 "+yr+(isPartial?" \u00b7 parcial":"");
   document.getElementById("report-subtitle").textContent="Partida arancelaria 4011 \\u00b7 Importaciones "+(isPartial?partialLabel:"enero\\u2013diciembre "+yr)+" \\u00b7 Fuente: Veritrade";
-  const banner=document.getElementById("partial-banner");if(banner)banner.style.display=isPartial?"block":"none";
   const total=d.total_qty,llQty=d.ll_qty,share=(llQty/total*100).toFixed(2);
+  const CMP=comparable(yr);
+  const banner=document.getElementById("partial-banner");
+  if(banner){
+    if(isPartial&&CMP){
+      banner.style.display="block";
+      banner.innerHTML=`<strong>Año parcial, comparado contra el mismo período.</strong> ${partialLabel} frente a ${CMP.label.toLowerCase()}. Los totales no son comparables con un año completo, pero las variaciones sí: miden exactamente los mismos meses.`;
+    } else if(isPartial){
+      banner.style.display="block";
+      banner.innerHTML=`<strong>Año parcial:</strong> los datos corresponden a ${partialLabel}.`;
+    } else banner.style.display="none";
+  }
   document.getElementById("kpi-total").textContent=fmt(total);
   document.getElementById("kpi-ll").textContent=fmt(llQty);
   document.getElementById("kpi-share").textContent=share+"% market share";
   document.getElementById("kpi-rank").textContent="#"+d.ll_rank;
+  const ctxLbl=CMP?"vs "+CMP.label:"";
+  document.getElementById("kpi-total-delta").innerHTML=CMP?deltaHtml(total,CMP.mkt,ctxLbl):"";
+  const shPrev=CMP&&CMP.mkt?CMP.ll/CMP.mkt*100:null;
+  const shDiff=shPrev!=null?(llQty/total*100-shPrev):null;
+  document.getElementById("kpi-ll-delta").innerHTML=CMP
+    ?deltaHtml(llQty,CMP.ll,ctxLbl)+(shDiff!=null?`<div class="delta block ${shDiff>0.01?"up":(shDiff<-0.01?"down":"flat")}">${shDiff>0?"+":""}${shDiff.toFixed(2)} pp de share</div>`:"")
+    :"";
+  document.getElementById("kpi-rank-delta").innerHTML=CMP?rankDeltaHtml(d.ll_rank,CMP.rank):"";
+  const thD=document.getElementById("imp-th-delta");if(thD)thD.textContent=CMP?"vs "+CMP.label:"Variacion";
   const leader=d.top_imp[0];
   if(d.ll_rank===1){document.getElementById("kpi-diff").textContent=fmt(llQty-(d.top_imp[1]||[0,0])[1]);document.getElementById("kpi-diff-sub").textContent="uds. sobre el #2";}
   else{document.getElementById("kpi-diff").textContent=fmt(leader[1]-llQty);document.getElementById("kpi-diff-sub").textContent="uds. vs. "+leader[0];}
@@ -373,7 +440,7 @@ function renderAll(yr){
 
   // Ranking table
   ce("imp-table");const maxQ=d.top_imp[0][1];
-  d.top_imp.slice(0,15).forEach((r,i)=>{const pct=(r[1]/total*100).toFixed(2),bw=Math.round(r[1]/maxQ*100),ll=isLL(r[0]),color=getColor(r[0]);const tr=document.createElement("tr");if(ll)tr.className="ling-long";tr.innerHTML=`<td style="color:#888780">${i+1}</td><td>${r[0]}${ll?" &#9733;":""}</td><td style="text-align:right;font-variant-numeric:tabular-nums">${fmt(r[1])}</td><td style="text-align:right">${pct}%</td><td><div class="bar-bg"><div class="bar-fill" style="width:${bw}%;background:${color}"></div></div></td>`;document.getElementById("imp-table").appendChild(tr);});
+  d.top_imp.slice(0,15).forEach((r,i)=>{const pct=(r[1]/total*100).toFixed(2),bw=Math.round(r[1]/maxQ*100),ll=isLL(r[0]),color=getColor(r[0]);const tr=document.createElement("tr");if(ll)tr.className="ling-long";tr.innerHTML=`<td style="color:#888780">${i+1}</td><td>${r[0]}${ll?" &#9733;":""}</td><td style="text-align:right;font-variant-numeric:tabular-nums">${fmt(r[1])}</td><td style="text-align:right">${CMP?deltaHtml(r[1],CMP.impMap[r[0]]):""}</td><td style="text-align:right">${pct}%</td><td><div class="bar-bg"><div class="bar-fill" style="width:${bw}%;background:${color}"></div></div></td>`;document.getElementById("imp-table").appendChild(tr);});
 
   // Line chart
   ce("legend-line");ce("monthly-tbody");
