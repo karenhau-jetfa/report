@@ -5,6 +5,82 @@ with open('years_data_v8.json') as f:
 with open('tipo_codes.json') as f:
     TIPO_CODES = json.load(f)
 
+
+# --- Consolidacion de exportadores duplicados ----------------------------
+# Los nombres llegan de aduana con erratas y variantes de razon social. Lo
+# correcto es arreglarlo en canon_exp() de extract_v8.py, pero eso exige
+# re-procesar los xlsx; mientras tanto se consolida aqui sobre el JSON.
+# Solo se fusiona lo inequivoco: erratas y sufijos societarios. NO se tocan
+# Shandong Linglong y HK Tiancheng, que son entidades distintas a proposito.
+EXP_ALIAS = {
+    "Disrtibuidora Rali, S.A.":            "Dist. Rali S.A.",
+    "Deestone Corporation":                 "Deestone Corporation Ltd.",
+    "Deestone Corporation Limited":         "Deestone Corporation Ltd.",
+    "Deestone Corporation Public Company Limited": "Deestone Corporation Ltd.",
+    "Importaciones Y Servicios Gs,S.A":     "Importaciones Y Servicios Gs, S.A.",
+    "Industria Narva Marovia S.A":          "Industrias Narva Marovia S.A.",
+    "Industrias Narva Marovia S,A":         "Industrias Narva Marovia S.A.",
+    "Industrias Narva Marovia S.A":         "Industrias Narva Marovia S.A.",
+    "Leontex Zl.":                          "Leontex",
+    "Sababa Import, S.A.":                  "Sababa Import",
+    "Shandong Wanda Boto Tyre Co.,Ltd":     "Shandong Wanda Boto Tyre",
+    "Sportrak Tire Group Limited":          "Sportrak Tire Group",
+    "Zena Fast Service S.A.":               "Zena Fast Service",
+    "Zena Fast Service, S.A.":              "Zena Fast Service",
+    "Zhoncge Rubber Group":                 "Zhongce Rubber Group",
+}
+def _canon(n): return EXP_ALIAS.get(n, n)
+
+def _merge_rows(rows):
+    """[[nombre, qty, cif], ...] -> fusionado y reordenado por qty"""
+    acc = {}
+    for r in rows:
+        n = _canon(r[0])
+        if n in acc:
+            acc[n][1] += r[1]; acc[n][2] += r[2]
+        else:
+            acc[n] = [n, r[1], r[2]]
+    return sorted(acc.values(), key=lambda r: -r[1])
+
+def consolidate_exporters(data):
+    fusiones = 0
+    for y, x in data.items():
+        before = sum(r[1] for r in x.get('top_exp', []))
+        x['top_exp'] = _merge_rows(x.get('top_exp', []))
+        assert abs(sum(r[1] for r in x['top_exp']) - before) < 1e-6, "top_exp cambio de total en " + y
+
+        prof = {}
+        for n, pr in x.get('exp_profiles', {}).items():
+            c = _canon(n)
+            if c not in prof:
+                prof[c] = {'total_qty': 0.0, 'total_cif': 0.0,
+                           'top_imp': [], 'seg': {}, 'monthly': [0.0]*12}
+            t = prof[c]
+            if c != n: fusiones += 1
+            t['total_qty'] += pr.get('total_qty', 0)
+            t['total_cif'] += pr.get('total_cif', 0)
+            t['top_imp'] += pr.get('top_imp', [])
+            for k, v in pr.get('seg', {}).items():
+                a = t['seg'].setdefault(k, [0.0, 0.0])
+                a[0] += v[0]; a[1] += v[1]
+            for i, v in enumerate(pr.get('monthly', [])[:12]):
+                t['monthly'][i] += v
+        for c, t in prof.items():
+            t['top_imp'] = _merge_rows(t['top_imp'])[:10]
+        x['exp_profiles'] = prof
+
+        x['seg_exp'] = {k: _merge_rows(v) for k, v in x.get('seg_exp', {}).items()}
+
+        x['ll_sup'] = _merge_rows(x.get('ll_sup', []))
+
+        for ip in x.get('imp_profiles', {}).values():
+            if 'top_exp' in ip:
+                ip['top_exp'] = _merge_rows(ip['top_exp'])[:10]
+    return fusiones
+
+_f = consolidate_exporters(ALL_DATA)
+print("exportadores consolidados: %d entradas fusionadas" % _f)
+
 COLOR_MAP = {
     # Paleta validada: las 36 parejas del conjunto superan los umbrales de separacion
     # (normal>=15, deuteranopia>=8, protanopia>=8) y todas contrastan con el fondo crema.

@@ -106,6 +106,28 @@ def canon_exp(name):
     """Comprehensive exporter normalization with regex to catch all typo variants."""
     n = str(name or '').strip()
     nu = n.upper()
+    # Erratas y variantes de razon social detectadas por similitud sobre el dataset
+    # 2019-2026. Ojo: Shandong Linglong y HK Tiancheng NO se fusionan a proposito.
+    if re.search(r'DIS[RT]{2}IBUIDORA RALI|DIST\.? RALI', nu):
+        return 'Dist. Rali S.A.'
+    if 'DEESTONE' in nu:
+        return 'Deestone Corporation Ltd.'
+    if re.search(r'INDUSTRIAS? NARVA MAROVIA', nu):
+        return 'Industrias Narva Marovia S.A.'
+    if re.search(r'IMPORTACIONES Y SERVICIOS GS', nu):
+        return 'Importaciones Y Servicios Gs, S.A.'
+    if re.search(r'^LEONTEX', nu):
+        return 'Leontex'
+    if re.search(r'^SABABA IMPORT', nu):
+        return 'Sababa Import'
+    if re.search(r'SHANDONG WANDA BOTO', nu):
+        return 'Shandong Wanda Boto Tyre'
+    if re.search(r'SPORTRAK TIRE GROUP', nu):
+        return 'Sportrak Tire Group'
+    if re.search(r'^ZENA FAST SERVICE', nu):
+        return 'Zena Fast Service'
+    if re.search(r'ZHON[CG]{2}E RUBBER', nu):
+        return 'Zhongce Rubber Group'
     # HK Tiancheng — all variants including special chars
     if re.search(r'TIAN[A-Z}]?[A-Z]?CHENG|TIACHENG|TIANCXHENG|TIA[}]ICHENG|TIANCCHENG|TIANHENG|TGIANCHENG', nu):
         return 'HK Tiancheng Inv. Trading'
