@@ -1,0 +1,11 @@
+{
+ "Turismo / Racing": "4011.10",
+ "Autobús / Camión": "4011.20",
+ "Motocicletas": "4011.40 / 4011.60",
+ "Bicicletas": "4011.50",
+ "Montacargas": "4011.80.11 / 4011.80.91",
+ "Construcción / Industrial": "4011.80.19 / 4011.80.99 / 4011.90.10",
+ "Agrícola / Forestal": "4011.70.10 / 4011.70.90",
+ "Aeronaves": "4011.30",
+ "Otros": "4011.80.12 / 4011.90.90"
+}

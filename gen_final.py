@@ -1,0 +1,650 @@
+import json, re
+
+with open('years_data_v8.json') as f:
+    ALL_DATA = json.load(f)
+with open('tipo_codes.json') as f:
+    TIPO_CODES = json.load(f)
+
+COLOR_MAP = {
+    "Auto Centro S.A.":"#eb6834","Ling Long":"#2a78d6",
+    "Central Lubricantes S.A.":"#1baf7a","Tambor S.A.":"#eda100",
+    "Dist. Rali S.A.":"#4a3aa7","Dipsa S.A.":"#e34948",
+    "Prod. Superiores S.A.":"#e87ba4","Grupo Daher S.A.":"#008300",
+    "King Wong S.A.":"#888780","Durallanta S.A.":"#5f5e5a",
+    "Feng Di Zhuo Chong":"#b4b2a9","Multi Serv. American Wheels":"#3987e5",
+    "Cia. Chiricana de Automoviles":"#9FE1CB","General Life Panama S.A.":"#FAC775",
+    "DK Speed S.A.":"#F09595","Reconstructora en Frio S.A.":"#6ed8b5",
+    "Auto Ser. 88 Internacional":"#fce9c4","Kenbroth Corp.":"#c8a8e9",
+    "Movilidad Internacional S.A.":"#f4c430","PriceSmart Panama S.A.":"#85b7eb",
+    "Montacargas y Repuestos S.A.":"#cd853f","Panama Forklift Co. Inc.":"#20b2aa",
+    "Montacargas Serv Iman S.A.":"#708090","Ginsa Motors S.A.":"#dda0dd",
+    "Empresas Melo S.A.":"#98fb98","Minera Panama S.A.":"#a0522d",
+    "Matco Internacional S.A.":"#ff7f50","Grupo Hongfa S.A.":"#40e0d0",
+    "Motor Group Latam S.A.":"#ffd700","Benserca 18 S.A.":"#da70d6",
+    "Otros":"#d3d1c7","Forkliftec Parts S.A.":"#b0c4de",
+}
+
+# Escape for safe embedding
+data_js   = json.dumps(ALL_DATA,   ensure_ascii=False)
+color_js  = json.dumps(COLOR_MAP,  ensure_ascii=False)
+tcodes_js = json.dumps(TIPO_CODES, ensure_ascii=False)
+
+# Build HTML as string concatenation to avoid f-string brace issues
+parts = []
+parts.append('''<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Analisis de Mercado — Neumaticos Panama 2019-2026</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;background:#f4f3f0;color:#0b0b0b;font-size:14px;line-height:1.6}
+.page{max-width:1100px;margin:0 auto;padding:40px 32px}
+.header{margin-bottom:36px;border-bottom:1px solid #d3d1c7;padding-bottom:22px}
+.header-top{display:flex;justify-content:space-between;align-items:flex-start}
+.brand-name{font-size:15px;font-weight:600;color:#2a78d6}
+.brand-sub{font-size:12px;color:#888780;margin-top:2px}
+.report-meta{text-align:right;font-size:12px;color:#888780}
+h1{font-size:26px;font-weight:700;margin-top:18px;color:#0b0b0b;letter-spacing:-0.3px}
+.subtitle{font-size:12px;color:#888780;margin-top:6px}
+.year-selector{display:flex;gap:6px;margin-top:16px}
+.year-btn{padding:6px 18px;border-radius:20px;border:1.5px solid #d3d1c7;background:#fff;color:#52514e;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s}
+.year-btn:hover{border-color:#2a78d6;color:#2a78d6}
+.year-btn.active{background:#2a78d6;border-color:#2a78d6;color:#fff}
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:32px}
+.kpi{background:#fff;border-radius:10px;border:0.5px solid #d3d1c7;padding:16px 18px}
+.kpi-label{font-size:11px;color:#888780;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px}
+.kpi-value{font-size:24px;font-weight:700;line-height:1}
+.kpi-value.blue{color:#2a78d6}
+.kpi-sub{font-size:11px;color:#888780;margin-top:5px}
+.badge{display:inline-block;background:#e6f1fb;color:#185fa5;font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;margin-top:5px}
+.badge-code{display:inline-block;background:#f4f3f0;color:#52514e;font-size:9px;font-weight:600;padding:1px 6px;border-radius:4px;font-family:monospace;letter-spacing:0.3px}
+.section{background:#fff;border-radius:12px;border:0.5px solid #d3d1c7;padding:26px 26px 22px;margin-bottom:24px}
+.section-title{font-size:15px;font-weight:700;margin-bottom:3px}
+.section-desc{font-size:11px;color:#888780;margin-bottom:18px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-bottom:14px}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:#52514e}
+.legend-swatch{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+.chart-wrap-donut{position:relative;width:100%;height:320px}
+.chart-wrap-bar{position:relative;width:100%;height:980px}
+.chart-wrap-line{position:relative;width:100%;height:400px}
+.insight{background:#e6f1fb;border-left:3px solid #2a78d6;border-radius:0 8px 8px 0;padding:12px 16px;margin-top:16px;font-size:12.5px;line-height:1.6}
+.insight strong{color:#185fa5}
+.table-wrap{overflow-x:auto;margin-top:12px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead th{background:#f4f3f0;color:#52514e;font-weight:600;padding:8px 12px;text-align:left;border-bottom:1px solid #d3d1c7}
+tbody tr:nth-child(even){background:#fafaf8}
+tbody td{padding:7px 12px;border-bottom:0.5px solid #e1e0d9}
+tbody tr.ling-long td{font-weight:700;color:#185fa5;background:#edf4fc}
+.bar-bg{height:7px;background:#e1e0d9;border-radius:4px;overflow:hidden;width:110px}
+.bar-fill{height:100%;border-radius:4px}
+.footer{margin-top:32px;padding-top:16px;border-top:0.5px solid #d3d1c7;display:flex;justify-content:space-between}
+.filter-tab{padding:6px 16px;border-radius:20px;border:1.5px solid #d3d1c7;background:#fff;color:#52514e;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s}
+.filter-tab:hover{border-color:#2a78d6;color:#2a78d6}
+.filter-tab.active{background:#2a78d6;border-color:#2a78d6;color:#fff}
+.filter-select{padding:7px 12px;border-radius:8px;border:1.5px solid #d3d1c7;font-size:13px;color:#0b0b0b;background:#fff;min-width:260px;cursor:pointer}
+.profile-kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}
+.profile-chart-row{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:14px}
+.footer p{font-size:11px;color:#b4b2a9}
+.seg-card{background:#fff;border-radius:10px;border:0.5px solid #d3d1c7;padding:14px 16px}
+@media print{body{background:#fff}.page{padding:20px}.section{break-inside:avoid}.year-selector{display:none}}
+</style>
+</head>
+<body>
+<div class="page">
+<div class="header">
+  <div class="header-top">
+    <div><div class="brand-name">Distribuidora Ling Long, S.A.</div><div class="brand-sub">Analisis de Mercado — Uso Interno</div></div>
+    <div class="report-meta"><div style="font-weight:600;color:#0b0b0b">Karen Hau</div><div>Generado el 17 de julio de 2026</div><div>Fuente: Veritrade — Aduana Panama</div></div>
+  </div>
+  <h1 id="report-title">Mercado de Neumaticos en Panama 2025</h1>
+  <p class="subtitle" id="report-subtitle">Partida arancelaria 4011 &middot; Importaciones enero&ndash;diciembre 2025 &middot; Fuente: Veritrade</p>
+  <div id="partial-banner" style="display:none;margin-top:10px;padding:8px 14px;background:#fff8e6;border:1px solid #f0c040;border-radius:8px;font-size:12px;color:#7a5800"><strong>&#9888; Año parcial:</strong> Los datos de 2026 corresponden únicamente a enero–mayo. Los totales no son comparables directamente con años completos.</div>
+  <div class="year-selector">
+    <button class="year-btn" onclick="switchYear(2019)">2019</button>
+    <button class="year-btn" onclick="switchYear(2020)">2020</button>
+    <button class="year-btn" onclick="switchYear(2021)">2021</button>
+    <button class="year-btn" onclick="switchYear(2022)">2022</button>
+    <button class="year-btn" onclick="switchYear(2023)">2023</button>
+    <button class="year-btn" onclick="switchYear(2024)">2024</button>
+    <button class="year-btn active" onclick="switchYear(2025)">2025</button>
+    <button class="year-btn" onclick="switchYear(2026)" style="border-style:dashed">2026 <span style="font-size:10px;font-weight:400">ene&ndash;may</span></button>
+  </div>
+</div>
+<div class="kpi-row">
+  <div class="kpi"><div class="kpi-label">Total mercado</div><div class="kpi-value" id="kpi-total">&#8212;</div><div class="kpi-sub">unidades importadas</div></div>
+  <div class="kpi"><div class="kpi-label">Dist. Ling Long</div><div class="kpi-value blue" id="kpi-ll">&#8212;</div><div class="kpi-sub">unidades importadas</div><div class="badge" id="kpi-share">&#8212;</div></div>
+  <div class="kpi"><div class="kpi-label">Posicion en mercado</div><div class="kpi-value blue" id="kpi-rank">&#8212;</div><div class="kpi-sub">de todos los importadores</div></div>
+  <div class="kpi"><div class="kpi-label">Diferencia vs. lider</div><div class="kpi-value" id="kpi-diff">&#8212;</div><div class="kpi-sub" id="kpi-diff-sub">&#8212;</div></div>
+</div>
+<div class="section" id="filter-section">
+  <div class="section-title">Filtros de Analisis</div>
+  <div class="section-desc">Selecciona un filtro para explorar el mercado desde una perspectiva especifica.</div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
+    <button class="filter-tab" id="ftab-imp" onclick="setFilterMode('imp')">Por Importador</button>
+    <button class="filter-tab" id="ftab-exp" onclick="setFilterMode('exp')">Por Exportador</button>
+    <button class="filter-tab" id="ftab-seg" onclick="setFilterMode('seg')">Por Sub-partida</button>
+    <button class="filter-tab" id="ftab-clear" onclick="clearFilterMode()" style="margin-left:auto;border-color:#e34948;color:#e34948">&#10005; Quitar filtro</button>
+  </div>
+  <div id="filter-controls" style="display:none;margin-bottom:16px">
+    <select class="filter-select" id="filter-select" onchange="applyFilter()">
+      <option value="">-- Seleccionar --</option>
+    </select>
+  </div>
+  <div id="filter-result" style="display:none">
+    <div class="profile-kpi" id="prof-kpis"></div>
+    <div class="profile-chart-row">
+      <div>
+        <p id="prof-bar-label" style="font-size:11px;color:#888780;margin-bottom:6px"></p>
+        <div style="position:relative;height:280px"><canvas id="profBarChart"></canvas></div>
+      </div>
+      <div>
+        <p style="font-size:11px;color:#888780;margin-bottom:6px">Distribucion por segmento</p>
+        <div style="position:relative;height:280px"><canvas id="profDonutChart"></canvas></div>
+      </div>
+    </div>
+    <div style="margin-top:16px">
+      <p style="font-size:11px;color:#888780;margin-bottom:6px">Evolucion mensual de unidades</p>
+      <div style="position:relative;height:200px"><canvas id="profLineChart"></canvas></div>
+    </div>
+    <div class="table-wrap" style="margin-top:14px"><table><thead id="prof-thead"></thead><tbody id="prof-tbody"></tbody></table></div>
+  </div>
+</div>
+<div class="section">
+  <div class="section-title">Market share por importador</div>
+  <div class="section-desc">Top 15 importadores de neumaticos en Panama por cantidad de unidades.</div>
+  <div class="legend" id="legend-pie"></div>
+  <div class="chart-wrap-donut"><canvas id="pieChart"></canvas></div>
+  <div class="insight" id="insight-pie"></div>
+</div>
+<div class="section">
+  <div class="section-title">Ranking de importadores por cantidad</div>
+  <div class="section-desc">Top 15 importadores ordenados por volumen. &#9733; = Distribuidora Ling Long.</div>
+  <div class="table-wrap"><table><thead><tr><th style="width:36px">#</th><th>Importador</th><th style="text-align:right">Unidades</th><th style="text-align:right">Market Share</th><th style="width:130px">Volumen relativo</th></tr></thead><tbody id="imp-table"></tbody></table></div>
+</div>
+<div class="section">
+  <div class="section-title">Evolucion mensual &#8212; Top 10 importadores</div>
+  <div class="section-desc">Unidades importadas por mes.</div>
+  <div class="legend" id="legend-line"></div>
+  <div class="chart-wrap-line"><canvas id="lineChart"></canvas></div>
+  <div class="table-wrap" style="margin-top:20px">
+    <table><thead><tr><th>#</th><th>Importador</th><th style="text-align:right">Ene</th><th style="text-align:right">Feb</th><th style="text-align:right">Mar</th><th style="text-align:right">Abr</th><th style="text-align:right">May</th><th style="text-align:right">Jun</th><th style="text-align:right">Jul</th><th style="text-align:right">Ago</th><th style="text-align:right">Sep</th><th style="text-align:right">Oct</th><th style="text-align:right">Nov</th><th style="text-align:right">Dic</th><th style="text-align:right;font-weight:700">Total</th></tr></thead>
+    <tbody id="monthly-tbody"></tbody></table>
+  </div>
+</div>
+<div class="section">
+  <div class="section-title">Top 20 exportadores por cantidad de unidades</div>
+  <div class="section-desc">Proveedores con mayor volumen de exportacion hacia Panama.</div>
+  <div class="chart-wrap-bar"><canvas id="barChart"></canvas></div>
+  <div class="table-wrap" style="margin-top:20px"><table><thead><tr><th>#</th><th>Exportador</th><th style="text-align:right">Unidades</th></tr></thead><tbody id="exp-tbody"></tbody></table></div>
+</div>
+<div class="section">
+  <div class="section-title">Evolucion mensual del precio promedio (U$ CIF/unidad)</div>
+  <div class="section-desc">Precio promedio por unidad mes a mes &#8212; mercado total vs Distribuidora Ling Long.</div>
+  <div style="position:relative;width:100%;height:320px"><canvas id="priceMonthChart"></canvas></div>
+</div>
+<div class="section">
+  <div class="section-title">Segmentacion por tipo de neumatico</div>
+  <div class="section-desc">Distribucion segun partida arancelaria. Izquierda: por cantidad. Derecha: por valor CIF.</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+    <div><p style="font-size:11px;color:#888780;margin-bottom:8px">Por unidades</p><div style="position:relative;width:100%;height:280px"><canvas id="tipoQtyChart"></canvas></div></div>
+    <div><p style="font-size:11px;color:#888780;margin-bottom:8px">Por valor CIF</p><div style="position:relative;width:100%;height:280px"><canvas id="tipoCifChart"></canvas></div></div>
+  </div>
+  <div class="table-wrap" style="margin-top:16px">
+    <table><thead><tr><th>Segmento</th><th>Codigo arancelario</th><th style="text-align:right">Unidades</th><th style="text-align:right">% Mercado</th><th style="text-align:right">Valor CIF</th><th style="text-align:right">$/ud CIF</th></tr></thead>
+    <tbody id="tipo-tbody"></tbody></table>
+  </div>
+  <div class="insight" id="insight-tipo"></div>
+</div>
+<div class="section">
+  <div class="section-title">Pais de origen</div>
+  <div class="section-desc">Principales paises de origen de los neumaticos importados a Panama.</div>
+  <div style="position:relative;width:100%;height:420px"><canvas id="paisChart"></canvas></div>
+</div>
+<div class="section">
+  <div class="section-title">Analisis HK Tiancheng &#8212; Clientes en Panama</div>
+  <div class="section-desc">Distribucion de las importaciones de HK Tiancheng por empresa compradora.</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:center">
+    <div style="position:relative;height:260px"><canvas id="hkChart"></canvas></div>
+    <div class="table-wrap"><table><thead><tr><th>#</th><th>Importador</th><th style="text-align:right">Unidades</th><th style="text-align:right">%</th></tr></thead><tbody id="hk-tbody"></tbody><tfoot><tr style="border-top:1.5px solid #d3d1c7"><td colspan="2" style="padding:7px 12px;font-weight:700;font-size:12px">Total</td><td id="hk-total" style="text-align:right;padding:7px 12px;font-weight:700;font-size:12px"></td><td style="text-align:right;padding:7px 12px;font-weight:700;font-size:12px">100%</td></tr></tfoot></table></div>
+  </div>
+  <div class="insight"><strong>Distribuidora Ling Long representa la mayor parte del volumen exportado por HK Tiancheng hacia Panama.</strong> Los otros compradores son en su mayoria clientes de Ling Long que adquieren contenedores directos, por lo que la operacion de HK Tiancheng en Panama esta integramente canalizada a traves de Ling Long.</div>
+</div><div class="section">
+  <div class="section-title">Analisis Ling Long &#8212; Suppliers / Exportadores</div>
+  <div class="section-desc">Proveedores de Distribuidora Ling Long consolidados por nombre.</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:center">
+    <div style="position:relative;height:300px"><canvas id="llSupChart"></canvas></div>
+    <div class="table-wrap"><table><thead><tr><th>#</th><th>Supplier</th><th style="text-align:right">Uds</th><th style="text-align:right">%</th><th style="text-align:right">$/ud</th></tr></thead><tbody id="llsup-tbody"></tbody></table></div>
+  </div>
+  <div class="insight" id="insight-sup"></div>
+</div>
+<div class="section">
+  <div class="section-title">Dist. Ling Long &#8212; Posicionamiento por segmento</div>
+  <div class="section-desc">Participacion de Ling Long en cada segmento del mercado segun partida arancelaria.</div>
+  <p style="font-size:12px;font-weight:600;margin-bottom:12px">Importaciones de Ling Long por tipo de neumatico</p>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:center;margin-bottom:28px">
+    <div style="position:relative;height:300px"><canvas id="llSubChart"></canvas></div>
+    <div class="table-wrap"><table><thead><tr><th>Segmento</th><th>Codigo</th><th style="text-align:right">Uds</th><th style="text-align:right">%</th><th style="text-align:right">$/ud</th></tr></thead><tbody id="llsub-tbody"></tbody></table></div>
+  </div>
+  <p style="font-size:12px;font-weight:600;margin-bottom:4px">Market share de Ling Long por segmento</p>
+  <p style="font-size:11px;color:#888780;margin-bottom:12px">Comparacion vs. el resto del mercado.</p>
+  <div style="position:relative;width:100%;height:340px;margin-bottom:24px"><canvas id="llShareChart"></canvas></div>
+  <div class="table-wrap" style="margin-bottom:20px">
+    <table><thead><tr><th>Segmento</th><th>Codigo</th><th style="text-align:right">Mercado total</th><th style="text-align:right">Ling Long</th><th style="text-align:right">Share LL</th><th style="text-align:right">$/ud mercado</th><th style="text-align:right">$/ud LL</th></tr></thead><tbody id="llpos-tbody"></tbody></table>
+  </div>
+  <p style="font-size:12px;font-weight:600;margin-bottom:12px">Competidores por segmento de oportunidad</p>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px" id="comp-cards"></div>
+</div>
+<div class="section">
+  <div class="section-title">Nomenclatura arancelaria &#8212; Partida 4011</div>
+  <div class="section-desc">Sub-partidas de neumaticos de caucho nuevos segun la Aduana de Panama.</div>
+  <style>
+  .sp-group-lbl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:#888780;margin:14px 0 4px 2px}
+  .sp-row{display:grid;grid-template-columns:130px 1fr 160px;align-items:start;gap:0;background:#fff;border:0.5px solid #d3d1c7;border-bottom:none;padding:8px 12px}
+  .sp-row:first-of-type{border-radius:8px 8px 0 0}
+  .sp-row:last-of-type{border-bottom:0.5px solid #d3d1c7;border-radius:0 0 8px 8px}
+  .sp-row:nth-of-type(even){background:#fafaf8}
+  .sp-code{font-family:monospace;font-size:11.5px;font-weight:600;color:#0b0b0b;padding-top:1px}
+  .sp-desc{font-size:11.5px;color:#0b0b0b;line-height:1.45}
+  .sp-desc small{display:block;font-size:10.5px;color:#888780;margin-top:2px}
+  .sp-pill{font-size:9.5px;font-weight:600;padding:2px 8px;border-radius:20px;white-space:nowrap;justify-self:end;margin-top:1px}
+  .pill-tur{background:#e6f1fb;color:#0c447c}
+  .pill-bus{background:#faeeda;color:#633806}
+  .pill-moto{background:#eeedfe;color:#3c3489}
+  .pill-bici{background:#eaf3de;color:#27500a}
+  .pill-agri{background:#e1f5ee;color:#085041}
+  .pill-fork{background:#faeeda;color:#854f0b}
+  .pill-const{background:#fcebeb;color:#791f1f}
+  .pill-aero{background:#fbeaf0;color:#72243e}
+  .pill-otros{background:#f4f3f0;color:#52514e;border:0.5px solid #d3d1c7}
+  </style>
+
+  <div class="sp-group-lbl">Vehiculos livianos y de pasajeros</div>
+  <div class="sp-row"><span class="sp-code">4011.10.00</span><span class="sp-desc">De los tipos utilizados en automoviles de turismo<small>Incluidos vehiculos familiares (SUV, sedan, hatchback) y autos de carrera</small></span><span class="sp-pill pill-tur">Turismo / Racing</span></div>
+  <div class="sp-row"><span class="sp-code">4011.40.00</span><span class="sp-desc">De los tipos utilizados en motocicletas<small>Incluye motos, scooters y similares</small></span><span class="sp-pill pill-moto">Motocicletas</span></div>
+  <div class="sp-row"><span class="sp-code">4011.50.00</span><span class="sp-desc">De los tipos utilizados en bicicletas<small>Bicicletas de pedal de todo tipo</small></span><span class="sp-pill pill-bici">Bicicletas</span></div>
+
+  <div class="sp-group-lbl">Transporte de carga y pasajeros</div>
+  <div class="sp-row"><span class="sp-code">4011.20.00</span><span class="sp-desc">De los tipos utilizados en autobuses o camiones<small>Buses, camiones de reparto, cabezales y similares</small></span><span class="sp-pill pill-bus">Autobus / Camion</span></div>
+  <div class="sp-row"><span class="sp-code">4011.30.00</span><span class="sp-desc">De los tipos utilizados en aeronaves<small>Aviacion comercial y privada</small></span><span class="sp-pill pill-aero">Aeronaves</span></div>
+
+  <div class="sp-group-lbl">Agricola y forestal</div>
+  <div class="sp-row"><span class="sp-code">4011.70.10</span><span class="sp-desc">Neumaticos nuevos de caucho para tractores y maquinaria agricola<small>Neumaticos con altos relieves tipo espina de pez o similares</small></span><span class="sp-pill pill-agri">Agricola / Forestal</span></div>
+  <div class="sp-row"><span class="sp-code">4011.70.90</span><span class="sp-desc">Los demas neumaticos para tractores y maquinaria agricola o forestal<small>Otros perfiles para maquinaria del campo y explotacion forestal</small></span><span class="sp-pill pill-agri">Agricola / Forestal</span></div>
+
+  <div class="sp-group-lbl">Manejo de materiales y construccion (sub-partida 4011.80)</div>
+  <div class="sp-row"><span class="sp-code">4011.80.11</span><span class="sp-desc">Neumaticos nuevos para montacargas &#8212; neumaticos inflables<small>Llantas neumaticas para carretillas elevadoras (forklifts)</small></span><span class="sp-pill pill-fork">Montacargas</span></div>
+  <div class="sp-row"><span class="sp-code">4011.80.91</span><span class="sp-desc">Neumaticos nuevos para montacargas &#8212; otros neumaticos inflables<small>Variantes de llanta neumatica para montacargas industriales</small></span><span class="sp-pill pill-fork">Montacargas</span></div>
+  <div class="sp-row"><span class="sp-code">4011.80.12</span><span class="sp-desc">Bandajes solidos o huecos para vehiculos industriales<small>Ruedas macizas de caucho para carretillas de mano y transpaletas (~$2&#8211;8/ud)</small></span><span class="sp-pill pill-otros">Otros</span></div>
+  <div class="sp-row"><span class="sp-code">4011.80.19</span><span class="sp-desc">Los demas neumaticos para vehiculos de construccion o mineria<small>Gruas, cargadores, retroexcavadoras, equipos OTR</small></span><span class="sp-pill pill-const">Construccion / Industrial</span></div>
+  <div class="sp-row"><span class="sp-code">4011.80.99</span><span class="sp-desc">Los demas neumaticos para vehiculos industriales y de obra<small>Otros equipos pesados de construccion y mineria</small></span><span class="sp-pill pill-const">Construccion / Industrial</span></div>
+
+  <div class="sp-group-lbl">Otros (sub-partida 4011.90)</div>
+  <div class="sp-row"><span class="sp-code">4011.90.10</span><span class="sp-desc">Neumaticos nuevos con altos relieves en forma de V o similar<small>Equipos de movimiento de tierra y obras publicas</small></span><span class="sp-pill pill-const">Construccion / Industrial</span></div>
+  <div class="sp-row"><span class="sp-code">4011.90.90</span><span class="sp-desc">Los demas neumaticos nuevos de caucho no clasificados anteriormente<small>Carretillas de mano, ATV, cuatrimotos y usos miscelaneos</small></span><span class="sp-pill pill-otros">Otros</span></div>
+</div>
+<div class="footer">
+  <p>Distribuidora Ling Long, S.A. &middot; Analisis Competitivo 2019&#8211;2026 &middot; Confidencial &middot; Karen Hau</p>
+  <p>Fuente: Veritrade &#8212; Aduana Nacional de Panama &middot; Partida 4011</p>
+</div>
+</div>
+''')
+
+parts.append('<script>\n')
+parts.append('const ALL_DATA = ')
+parts.append(data_js)
+parts.append(';\nconst COLOR_MAP = ')
+parts.append(color_js)
+parts.append(';\nconst TIPO_CODES = ')
+parts.append(tcodes_js)
+parts.append(''';\nconst MONTHS=["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+const TIPO_COLORS={
+  "Turismo / Racing":"#2a78d6",
+  "Autobus / Camion":"#eb6834",
+  "Autob\\u00fas / Cami\\u00f3n":"#eb6834",
+  "Motocicletas":"#4a3aa7",
+  "Bicicletas":"#1baf7a",
+  "Montacargas":"#eda100",
+  "Construcci\\u00f3n / Industrial":"#e34948",
+  "Construccion / Industrial":"#e34948",
+  "Agr\\u00edcola / Forestal":"#008300",
+  "Agricola / Forestal":"#008300",
+  "Aeronaves":"#888780",
+  "Otros":"#d3d1c7"
+};
+const OPP_SEGS=["Turismo / Racing","Autob\\u00fas / Cami\\u00f3n","Motocicletas","Montacargas","Construcci\\u00f3n / Industrial","Agr\\u00edcola / Forestal"];
+const FALLBACK_COLORS=["#85b7eb","#f4c430","#a8d8a8","#dda0dd","#ffd700","#20b2aa","#cd853f","#708090","#ffb6c1","#98fb98","#f0e68c","#c8a8e9","#fce9c4","#9FE1CB","#FAC775","#F09595"];
+let fallbackIdx=0;
+function getColor(name){if(!COLOR_MAP[name]){COLOR_MAP[name]=FALLBACK_COLORS[fallbackIdx++%FALLBACK_COLORS.length];}return COLOR_MAP[name];}
+function getTipoColor(name){return TIPO_COLORS[name]||TIPO_COLORS[Object.keys(TIPO_COLORS).find(k=>k.normalize("NFD").replace(/[\\u0300-\\u036f]/g,"")===name.normalize("NFD").replace(/[\\u0300-\\u036f]/g,""))]||"#b4b2a9";}
+function isLL(n){return /ling.?long/i.test(n);}
+function fmt(n){return Math.round(n).toLocaleString("es-PA");}
+function fmtK(n){return n>=1000000?"$"+(n/1000000).toFixed(1)+"M":n>=1000?"$"+(n/1000).toFixed(0)+"k":"$"+Math.round(n);}
+function sl(n){return n.length>30?n.substring(0,28)+"\\u2026":n;}
+let charts={};
+function destroyAll(){Object.values(charts).forEach(c=>{try{c.destroy();}catch(e){}});charts={};}
+function rc(id){const o=document.getElementById(id),p=o.parentNode,n=document.createElement("canvas");n.id=id;p.replaceChild(n,o);}
+function ce(id){const el=document.getElementById(id);if(el)el.innerHTML="";}
+
+function renderAll(yr){
+  const d=ALL_DATA[String(yr)];if(!d)return;
+  destroyAll();
+  const isPartial=!!d.partial;
+  const partialLabel=d.partial_label||"parcial";
+  document.getElementById("report-title").textContent="Mercado de Neum\\u00e1ticos en Panam\\u00e1 "+yr+(isPartial?" ("+partialLabel+")":"");
+  document.getElementById("report-subtitle").textContent="Partida arancelaria 4011 \\u00b7 Importaciones "+(isPartial?partialLabel:"enero\\u2013diciembre "+yr)+" \\u00b7 Fuente: Veritrade";
+  const banner=document.getElementById("partial-banner");if(banner)banner.style.display=isPartial?"block":"none";
+  const total=d.total_qty,llQty=d.ll_qty,share=(llQty/total*100).toFixed(2);
+  document.getElementById("kpi-total").textContent=fmt(total);
+  document.getElementById("kpi-ll").textContent=fmt(llQty);
+  document.getElementById("kpi-share").textContent=share+"% market share";
+  document.getElementById("kpi-rank").textContent="#"+d.ll_rank;
+  const leader=d.top_imp[0];
+  if(d.ll_rank===1){document.getElementById("kpi-diff").textContent=fmt(llQty-(d.top_imp[1]||[0,0])[1]);document.getElementById("kpi-diff-sub").textContent="uds. sobre el #2";}
+  else{document.getElementById("kpi-diff").textContent=fmt(leader[1]-llQty);document.getElementById("kpi-diff-sub").textContent="uds. vs. "+leader[0];}
+
+  // Donut
+  ce("legend-pie");
+  const top15=d.top_imp.slice(0,15);
+  const pieLabels=[...top15.map(r=>r[0]),"Otros"];
+  const pieQty=[...top15.map(r=>r[1]),Math.max(0,total-top15.reduce((s,r)=>s+r[1],0))];
+  const pieColors=[...top15.map(r=>getColor(r[0])),"#d3d1c7"];
+  const legPie=document.getElementById("legend-pie");
+  top15.forEach((r,i)=>{const el=document.createElement("span");el.className="legend-item";el.innerHTML=`<span class="legend-swatch" style="background:${pieColors[i]}"></span>${sl(r[0])} ${(r[1]/total*100).toFixed(1)}%`;legPie.appendChild(el);});
+  rc("pieChart");
+  charts.pie=new Chart(document.getElementById("pieChart"),{type:"doughnut",data:{labels:pieLabels,datasets:[{data:pieQty,backgroundColor:pieColors,borderWidth:2,borderColor:"#fff"}]},options:{responsive:true,maintainAspectRatio:false,cutout:"55%",plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${fmt(ctx.parsed)} uds (${(ctx.parsed/total*100).toFixed(1)}%)`}}}}});
+  const top3Share=((d.top_imp[0][1]+(d.top_imp[1]||[0,0])[1]+(d.top_imp[2]||[0,0])[1])/total*100).toFixed(1);
+  document.getElementById("insight-pie").innerHTML=`<strong>Distribuidora Ling Long ocupa el #${d.ll_rank} del mercado</strong> con ${fmt(llQty)} unidades (${share}%). Los tres primeros importadores acaparan el <strong>${top3Share}% del mercado total</strong>.`;
+
+  // Ranking table
+  ce("imp-table");const maxQ=d.top_imp[0][1];
+  d.top_imp.slice(0,15).forEach((r,i)=>{const pct=(r[1]/total*100).toFixed(2),bw=Math.round(r[1]/maxQ*100),ll=isLL(r[0]),color=getColor(r[0]);const tr=document.createElement("tr");if(ll)tr.className="ling-long";tr.innerHTML=`<td style="color:#888780">${i+1}</td><td>${r[0]}${ll?" &#9733;":""}</td><td style="text-align:right;font-variant-numeric:tabular-nums">${fmt(r[1])}</td><td style="text-align:right">${pct}%</td><td><div class="bar-bg"><div class="bar-fill" style="width:${bw}%;background:${color}"></div></div></td>`;document.getElementById("imp-table").appendChild(tr);});
+
+  // Line chart
+  ce("legend-line");ce("monthly-tbody");
+  const top10=d.top10||[];
+  const lineEntries=top10.map(name=>[name,d.monthly_top10[name]||Array(12).fill(0)]);
+  const legLine=document.getElementById("legend-line");
+  lineEntries.forEach(([name])=>{const el=document.createElement("span");el.className="legend-item";el.innerHTML=`<span class="legend-swatch" style="background:${getColor(name)}"></span>${sl(name)}`;legLine.appendChild(el);});
+  rc("lineChart");
+  charts.line=new Chart(document.getElementById("lineChart"),{type:"line",data:{labels:MONTHS,datasets:lineEntries.map(([name,vals])=>{const c=getColor(name);return{label:name,data:vals,borderColor:c,backgroundColor:c+"18",borderWidth:isLL(name)?3:1.8,pointRadius:isLL(name)?5:3,tension:0.35,fill:false};})},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},plugins:{legend:{display:false},tooltip:{itemSort:(a,b)=>b.parsed.y-a.parsed.y,callbacks:{label:ctx=>` ${ctx.dataset.label}: ${fmt(ctx.parsed.y)} uds`}}},scales:{x:{grid:{display:false},ticks:{color:"#888780",font:{size:11}}},y:{grid:{color:"#e1e0d9"},ticks:{color:"#888780",font:{size:11},callback:v=>(v/1000).toFixed(0)+"k"}}}}});
+  const sortedLines=lineEntries.map(([name,vals])=>({name,vals,total:vals.reduce((a,b)=>a+b,0)})).sort((a,b)=>b.total-a.total);
+  const mTbody=document.getElementById("monthly-tbody");
+  sortedLines.forEach((row,rank)=>{const ll=/ling.?long/i.test(row.name),tr=document.createElement("tr");if(ll)tr.className="ling-long";const cells=row.vals.map(v=>`<td style="text-align:right;font-variant-numeric:tabular-nums;font-size:11px">${v>0?fmt(v):"\\u2014"}</td>`).join("");tr.innerHTML=`<td style="color:#888780;font-size:11px">${rank+1}</td><td style="font-size:11px"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${getColor(row.name)};margin-right:5px;vertical-align:middle"></span>${row.name}${ll?" &#9733;":""}</td>${cells}<td style="text-align:right;font-weight:700;font-size:11px">${fmt(row.total)}</td>`;mTbody.appendChild(tr);});
+
+  // Exporters
+  ce("exp-tbody");
+  const topExp=(d.top_exp||[]).slice(0,20);
+  topExp.forEach((r,i)=>{const tr=document.createElement("tr");tr.innerHTML=`<td style="color:#888780">${i+1}</td><td>${r[0]}</td><td style="text-align:right;font-variant-numeric:tabular-nums">${fmt(r[1])}</td>`;document.getElementById("exp-tbody").appendChild(tr);});
+  rc("barChart");
+  charts.bar=new Chart(document.getElementById("barChart"),{type:"bar",data:{labels:topExp.map(r=>r[0]),datasets:[{label:"Unidades",data:topExp.map(r=>r[1]),backgroundColor:topExp.map((_,i)=>i<2?"#2a78d6":i<4?"#3987e5":"#85b7eb"),borderWidth:0,borderRadius:{topRight:4,bottomRight:4},borderSkipped:"left"}]},options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${fmt(ctx.parsed.x)} unidades`}}},scales:{x:{grid:{color:"#e1e0d9"},ticks:{color:"#888780",font:{size:11},callback:v=>(v/1000).toFixed(0)+"k"}},y:{grid:{display:false},ticks:{color:"#52514e",font:{size:11}}}}}});
+
+  // Monthly price
+  const mktQty=d.monthly_mkt_qty||Array(12).fill(0),mktCif=d.monthly_mkt_cif||Array(12).fill(0);
+  const llMonQty=d.monthly_ll_qty||Array(12).fill(0),llMonCif=d.monthly_ll_cif||Array(12).fill(0);
+  rc("priceMonthChart");
+  charts.price=new Chart(document.getElementById("priceMonthChart"),{type:"line",data:{labels:MONTHS,datasets:[{label:"Mercado total",data:mktQty.map((q,i)=>q>0?+(mktCif[i]/q).toFixed(2):null),borderColor:"#888780",backgroundColor:"#88878018",borderWidth:2,pointRadius:3,tension:0.35,fill:false,spanGaps:true},{label:"Ling Long",data:llMonQty.map((q,i)=>q>0?+(llMonCif[i]/q).toFixed(2):null),borderColor:"#2a78d6",backgroundColor:"#2a78d618",borderWidth:3,pointRadius:5,tension:0.35,fill:false,spanGaps:true}]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},plugins:{legend:{display:true,position:"top",labels:{usePointStyle:true,font:{size:11}}},tooltip:{callbacks:{label:ctx=>ctx.parsed.y!=null?` ${ctx.dataset.label}: $${ctx.parsed.y.toFixed(2)}/ud`:""}}},scales:{x:{grid:{display:false},ticks:{color:"#888780",font:{size:11}}},y:{grid:{color:"#e1e0d9"},ticks:{color:"#888780",font:{size:11},callback:v=>"$"+v}}}}});
+
+  // Tipo donuts + tabla
+  const tipoQ=d.tipo_qty||{},tipoC=d.tipo_cif||{};
+  const tipoKeysAll=Object.keys(tipoQ).sort((a,b)=>tipoQ[b]-tipoQ[a]);
+  const totalQall=Object.values(tipoQ).reduce((a,b)=>a+b,0);
+  const totalCall=Object.values(tipoC).reduce((a,b)=>a+b,0);
+  const tColors=tipoKeysAll.map(k=>getTipoColor(k));
+  rc("tipoQtyChart");
+  charts.tipoQty=new Chart(document.getElementById("tipoQtyChart"),{type:"doughnut",data:{labels:tipoKeysAll,datasets:[{data:tipoKeysAll.map(k=>tipoQ[k]),backgroundColor:tColors,borderWidth:2,borderColor:"#fff"}]},options:{responsive:true,maintainAspectRatio:false,cutout:"50%",plugins:{legend:{display:true,position:"bottom",labels:{font:{size:9},boxWidth:10}},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${fmt(ctx.parsed)} uds (${(ctx.parsed/totalQall*100).toFixed(1)}%)`}}}}});
+  rc("tipoCifChart");
+  charts.tipoCif=new Chart(document.getElementById("tipoCifChart"),{type:"doughnut",data:{labels:tipoKeysAll,datasets:[{data:tipoKeysAll.map(k=>tipoC[k]||0),backgroundColor:tColors,borderWidth:2,borderColor:"#fff"}]},options:{responsive:true,maintainAspectRatio:false,cutout:"50%",plugins:{legend:{display:true,position:"bottom",labels:{font:{size:9},boxWidth:10}},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${fmtK(ctx.parsed)}`}}}}});
+  ce("tipo-tbody");const tipoTbody=document.getElementById("tipo-tbody");
+  tipoKeysAll.forEach(k=>{const q=tipoQ[k]||0,c=tipoC[k]||0,avg=q>0?c/q:0;const tr=document.createElement("tr");const codeHtml=TIPO_CODES[k]?`<span class="badge-code">${TIPO_CODES[k]}</span>`:"\\u2014";tr.innerHTML=`<td style="font-size:11px"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${getTipoColor(k)};margin-right:5px;vertical-align:middle"></span><strong>${k}</strong></td><td style="font-size:10px">${codeHtml}</td><td style="text-align:right;font-size:11px;font-variant-numeric:tabular-nums">${fmt(q)}</td><td style="text-align:right;font-size:11px">${(q/totalQall*100).toFixed(1)}%</td><td style="text-align:right;font-size:11px">${fmtK(c)}</td><td style="text-align:right;font-size:11px;font-weight:600">$${avg.toFixed(2)}</td>`;tipoTbody.appendChild(tr);});
+  const turQ=tipoQ["Turismo / Racing"]||0,mcarQ=tipoQ["Montacargas"]||0;
+  document.getElementById("insight-tipo").innerHTML=`<strong>Turismo/Racing</strong> domina en volumen (${(turQ/totalQall*100).toFixed(0)}%). <strong>Montacargas</strong> (4011.80.11 / 4011.80.91) es un segmento independiente con ${fmt(mcarQ)} uds separado ahora de Construcci\\u00f3n/Industrial. <strong>Agr\\u00edcola/Forestal</strong> (4011.70.10/90) incluye solo llantas para tractores y maquinaria agr\\u00edcola a ~$${tipoQ["Agr\\u00edcola / Forestal"]>0?(tipoC["Agr\\u00edcola / Forestal"]/tipoQ["Agr\\u00edcola / Forestal"]).toFixed(0):"\\u2014"}/ud.`;
+
+  // Pais
+  const topCountry=(d.top_country||[]).slice(0,12);
+  rc("paisChart");
+  charts.pais=new Chart(document.getElementById("paisChart"),{type:"bar",data:{labels:topCountry.map(r=>r[0]),datasets:[{label:"Unidades",data:topCountry.map(r=>r[1]),backgroundColor:topCountry.map((_,i)=>i===0?"#e34948":i===1?"#eda100":i<4?"#3987e5":"#85b7eb"),borderWidth:0,borderRadius:{topRight:4,bottomRight:4},borderSkipped:"left"}]},options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${fmt(ctx.parsed.x)} uds`}}},scales:{x:{grid:{color:"#e1e0d9"},ticks:{color:"#888780",font:{size:11},callback:v=>(v/1000).toFixed(0)+"k"}},y:{grid:{display:false},ticks:{color:"#52514e",font:{size:11}}}}}});
+
+  // HK Tiancheng
+  ce("hk-tbody");
+  const hkClients=d.hk_clients||[],hkTotal=hkClients.reduce((s,r)=>s+r[1],0);
+  const hkColors=["#2a78d6","#85b7eb","#b4b2a9","#d3d1c7","#eda100","#1baf7a"];
+  rc("hkChart");
+  charts.hk=new Chart(document.getElementById("hkChart"),{type:"doughnut",data:{labels:hkClients.map(r=>r[0]),datasets:[{data:hkClients.map(r=>r[1]),backgroundColor:hkColors.slice(0,hkClients.length),borderWidth:2,borderColor:"#fff"}]},options:{responsive:true,maintainAspectRatio:false,cutout:"52%",plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${fmt(ctx.parsed)} uds (${(ctx.parsed/hkTotal*100).toFixed(1)}%)`}}}}});
+  const hkTbody=document.getElementById("hk-tbody");
+  hkClients.forEach((r,i)=>{const ll=isLL(r[0]),tr=document.createElement("tr");if(ll)tr.className="ling-long";tr.innerHTML=`<td style="color:#888780">${i+1}</td><td><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${hkColors[i]};margin-right:5px;vertical-align:middle"></span>${r[0]}${ll?" &#9733;":""}</td><td style="text-align:right;font-variant-numeric:tabular-nums">${fmt(r[1])}</td><td style="text-align:right">${(r[1]/hkTotal*100).toFixed(1)}%</td>`;hkTbody.appendChild(tr);});
+  const hkTotalEl=document.getElementById("hk-total");if(hkTotalEl)hkTotalEl.textContent=fmt(hkTotal);
+
+  // LL Suppliers
+  ce("llsup-tbody");
+  const llSup=d.ll_sup||[],llSupTotal=llSup.reduce((s,r)=>s+r[1],0);
+  const llSupColors=["#2a78d6","#eb6834","#1baf7a","#eda100","#4a3aa7","#e34948","#e87ba4","#008300","#888780","#5f5e5a","#b4b2a9","#3987e5"];
+  rc("llSupChart");
+  charts.llSup=new Chart(document.getElementById("llSupChart"),{type:"doughnut",data:{labels:llSup.map(r=>r[0]),datasets:[{data:llSup.map(r=>r[1]),backgroundColor:llSupColors.slice(0,llSup.length),borderWidth:2,borderColor:"#fff"}]},options:{responsive:true,maintainAspectRatio:false,cutout:"52%",plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${fmt(ctx.parsed)} uds (${(ctx.parsed/llSupTotal*100).toFixed(1)}%)`}}}}});
+  const llSupTbody=document.getElementById("llsup-tbody");
+  llSup.forEach((r,i)=>{const avg=(r[1]>0?r[2]/r[1]:0).toFixed(2),tr=document.createElement("tr");if(i===0)tr.className="ling-long";tr.innerHTML=`<td style="color:#888780">${i+1}</td><td style="font-size:11px"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${llSupColors[i]};margin-right:5px;vertical-align:middle"></span>${r[0]}</td><td style="text-align:right;font-variant-numeric:tabular-nums;font-size:11px">${fmt(r[1])}</td><td style="text-align:right;font-size:11px">${(r[1]/llSupTotal*100).toFixed(1)}%</td><td style="text-align:right;font-size:11px">$${avg}</td>`;llSupTbody.appendChild(tr);});
+  const mainSup=llSup[0]||["\\u2014",0,0],mainPct=(llSupTotal>0?mainSup[1]/llSupTotal*100:0).toFixed(1);
+  document.getElementById("insight-sup").innerHTML=`<strong>${mainSup[0]} representa el ${mainPct}% del abastecimiento de Ling Long</strong> en ${yr}. Los dem\\u00e1s ${llSup.length-1} proveedores suman el ${(100-parseFloat(mainPct)).toFixed(1)}% restante.`;
+
+  // LL sub
+  ce("llsub-tbody");
+  const llSub=d.ll_sub||{},llSubKeys=Object.keys(llSub).sort((a,b)=>llSub[b].qty-llSub[a].qty);
+  const llSubTotal2=llSubKeys.reduce((s,k)=>s+llSub[k].qty,0);
+  rc("llSubChart");
+  charts.llSub=new Chart(document.getElementById("llSubChart"),{type:"doughnut",data:{labels:llSubKeys,datasets:[{data:llSubKeys.map(k=>llSub[k].qty),backgroundColor:llSubKeys.map(k=>getTipoColor(k)),borderWidth:2,borderColor:"#fff"}]},options:{responsive:true,maintainAspectRatio:false,cutout:"52%",plugins:{legend:{display:true,position:"bottom",labels:{font:{size:10},boxWidth:10}},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${fmt(ctx.parsed)} uds (${(ctx.parsed/llSubTotal2*100).toFixed(1)}%)`}}}}});
+  const llSubTbody=document.getElementById("llsub-tbody");
+  llSubKeys.forEach(k=>{const v=llSub[k],avg=v.qty>0?v.cif/v.qty:0,code=TIPO_CODES[k]||"";const tr=document.createElement("tr");tr.innerHTML=`<td style="font-size:11px"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${getTipoColor(k)};margin-right:5px;vertical-align:middle"></span>${k}</td><td style="font-size:9px;color:#888780;font-family:monospace">${code}</td><td style="text-align:right;font-size:11px;font-variant-numeric:tabular-nums">${fmt(v.qty)}</td><td style="text-align:right;font-size:11px">${(v.qty/llSubTotal2*100).toFixed(1)}%</td><td style="text-align:right;font-size:11px">$${avg.toFixed(2)}</td>`;llSubTbody.appendChild(tr);});
+
+  // LL share stacked bar
+  const segMkt=d.seg_mkt||{},segLL2=d.seg_ll||{};
+  const segFiltered=OPP_SEGS.filter(s=>segMkt[s]&&segMkt[s].qty>0);
+  rc("llShareChart");
+  charts.llShare=new Chart(document.getElementById("llShareChart"),{type:"bar",data:{labels:segFiltered,datasets:[{label:"Ling Long",data:segFiltered.map(s=>(segLL2[s]||{qty:0}).qty),backgroundColor:"#2a78d6",borderWidth:0},{label:"Resto mercado",data:segFiltered.map(s=>segMkt[s].qty-((segLL2[s]||{qty:0}).qty)),backgroundColor:"#e1e0d9",borderWidth:0,borderRadius:{topRight:4,bottomRight:4}}]},options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"top",labels:{usePointStyle:true,font:{size:11}}},tooltip:{callbacks:{label:ctx=>{const s=segFiltered[ctx.dataIndex];const llV=(segLL2[s]||{qty:0}).qty,mktV=segMkt[s].qty;return ctx.datasetIndex===0?` Ling Long: ${fmt(llV)} uds (${(llV/mktV*100).toFixed(1)}%)`:`Resto: ${fmt(mktV-llV)} uds`;}}}},scales:{x:{stacked:true,grid:{color:"#e1e0d9"},ticks:{color:"#888780",font:{size:10},callback:v=>(v/1000).toFixed(0)+"k"}},y:{stacked:true,grid:{display:false},ticks:{color:"#52514e",font:{size:11}}}}}});
+
+  // LL pos table
+  ce("llpos-tbody");
+  const llPosTbody=document.getElementById("llpos-tbody");
+  segFiltered.forEach(s=>{const mktV=segMkt[s].qty,mktC=segMkt[s].cif;const llV=(segLL2[s]||{qty:0,cif:0}).qty,llC=(segLL2[s]||{qty:0,cif:0}).cif;const share=(mktV>0?llV/mktV*100:0).toFixed(1);const code=TIPO_CODES[s]||"";const tr=document.createElement("tr");if(/turismo/i.test(s))tr.className="ling-long";tr.innerHTML=`<td style="font-size:11px"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${getTipoColor(s)};margin-right:4px;vertical-align:middle"></span>${s}</td><td style="font-size:9px;color:#888780;font-family:monospace">${code}</td><td style="text-align:right;font-size:11px;font-variant-numeric:tabular-nums">${fmt(mktV)}</td><td style="text-align:right;font-size:11px;font-variant-numeric:tabular-nums">${fmt(llV)}</td><td style="text-align:right;font-size:11px;font-weight:600">${share}%</td><td style="text-align:right;font-size:11px">$${mktV>0?(mktC/mktV).toFixed(2):"\\u2014"}</td><td style="text-align:right;font-size:11px">$${llV>0?(llC/llV).toFixed(2):"\\u2014"}</td>`;llPosTbody.appendChild(tr);});
+
+  // Competitive cards
+  ce("comp-cards");
+  const segTop=d.seg_top||{},compCards=document.getElementById("comp-cards");
+  OPP_SEGS.filter(seg=>segTop[seg]&&segTop[seg].length>0).forEach(seg=>{
+    const players=segTop[seg],mktData=segMkt[seg]||{qty:0,cif:0},llData=segLL2[seg]||{qty:0,cif:0};
+    const mktAvg=mktData.qty>0?mktData.cif/mktData.qty:0,llAvg=llData.qty>0?llData.cif/llData.qty:0;
+    const priceDiff=mktAvg>0?Math.abs((llAvg-mktAvg)/mktAvg*100).toFixed(0):0;
+    const llBelow=llAvg>0&&llAvg<mktAvg;
+    const priceTag=llAvg>0?(llBelow?`<span style="color:#1baf7a;font-weight:700">${priceDiff}% por debajo &#8595;</span>`:`<span style="color:#e34948;font-weight:700">${priceDiff}% por encima &#8593;</span>`):`<span style="color:#888780">sin datos LL</span>`;
+    const maxP=players[0]?players[0][1]:1;
+    const rows=players.map((p,i)=>{const ll2=isLL(p[0]),bw=Math.round(p[1]/maxP*100),pAvg=p[1]>0?p[2]/p[1]:0;return `<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;align-items:baseline;font-size:10px;color:${ll2?"#2a78d6":"#52514e"};font-weight:${ll2?700:400};margin-bottom:2px"><span>${ll2?"&#9733; ":""}#${i+1} ${p[0]}</span><span style="display:flex;gap:10px;font-variant-numeric:tabular-nums"><span style="color:#888780;font-weight:400">${pAvg>0?"$"+pAvg.toFixed(2)+"/ud":""}</span><span>${fmt(p[1])}</span></span></div><div style="height:5px;background:#e1e0d9;border-radius:3px"><div style="height:100%;width:${bw}%;background:${ll2?"#2a78d6":"#b4b2a9"};border-radius:3px"></div></div></div>`;}).join("");
+    const codeHtml=TIPO_CODES[seg]?`<div style="font-size:9px;color:#888780;font-family:monospace;margin-bottom:6px">${TIPO_CODES[seg]}</div>`:"";
+    const warnNote=(seg==="Construcci\\u00f3n / Industrial"&&(yr===2022||yr===2023))?`<div style="font-size:9px;color:#8a6200;margin-top:6px;padding:4px 6px;background:#fff8e6;border-radius:4px">&#9888; Precio ${yr} elevado por llantas OTR de Minera Panam\\u00e1 (Cobre Panam\\u00e1, cerr\\u00f3 nov 2023)</div>`:"";
+    const card=document.createElement("div");card.className="seg-card";
+    card.innerHTML=`<div style="font-size:12px;font-weight:700;color:${getTipoColor(seg)||"#0b0b0b"};margin-bottom:2px">${seg}</div>${codeHtml}<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;background:#f4f3f0;border-radius:6px;padding:8px 10px"><div><div style="font-size:9px;color:#888780;margin-bottom:1px">Precio mercado</div><div style="font-size:13px;font-weight:700;color:#0b0b0b">$${mktAvg.toFixed(2)}/ud</div></div><div><div style="font-size:9px;color:#888780;margin-bottom:1px">Precio Ling Long</div><div style="font-size:13px;font-weight:700;color:#2a78d6">${llAvg>0?"$"+llAvg.toFixed(2)+"/ud":"sin datos"}</div></div><div style="grid-column:1/-1;font-size:9px;margin-top:2px">LL est\\u00e1 ${priceTag} del mercado</div></div>${rows}${warnNote}`;
+    compCards.appendChild(card);
+  });
+}
+
+function switchYear(yr){
+  document.querySelectorAll(".year-btn").forEach(b=>b.classList.toggle("active",parseInt(b.textContent)===yr));
+  renderAll(yr);
+  // Reset filter select options when year changes
+  rebuildFilterSelect();
+}
+
+// ── FILTER LOGIC ────────────────────────────────────────────────
+let currentFilterMode = null;
+let filterCharts = {};
+
+function destroyFilterCharts(){
+  Object.values(filterCharts).forEach(c=>{try{c.destroy();}catch(e){}});
+  filterCharts={};
+}
+
+function rcf(id){const o=document.getElementById(id);if(!o)return;const p=o.parentNode,n=document.createElement("canvas");n.id=id;p.replaceChild(n,o);}
+
+function setFilterMode(mode){
+  currentFilterMode=mode;
+  document.querySelectorAll(".filter-tab").forEach(b=>b.classList.remove("active"));
+  document.getElementById("ftab-"+mode).classList.add("active");
+  document.getElementById("filter-controls").style.display="block";
+  document.getElementById("filter-result").style.display="none";
+  rebuildFilterSelect();
+}
+
+function clearFilterMode(){
+  currentFilterMode=null;
+  document.querySelectorAll(".filter-tab").forEach(b=>b.classList.remove("active"));
+  document.getElementById("filter-controls").style.display="none";
+  document.getElementById("filter-result").style.display="none";
+  destroyFilterCharts();
+}
+
+function getActiveYear(){
+  const ab=document.querySelector(".year-btn.active");
+  return ab?parseInt(ab.textContent):2025;
+}
+
+function rebuildFilterSelect(){
+  if(!currentFilterMode)return;
+  const yr=getActiveYear();
+  const d=ALL_DATA[String(yr)];if(!d)return;
+  const sel=document.getElementById("filter-select");
+  sel.innerHTML="<option value=''>-- Seleccionar --</option>";
+  let items=[];
+  if(currentFilterMode==="imp") items=Object.keys(d.imp_profiles||{}).sort();
+  else if(currentFilterMode==="exp") items=Object.keys(d.exp_profiles||{}).sort();
+  else if(currentFilterMode==="seg") items=Object.keys(d.tipo_qty||{}).filter(k=>d.tipo_qty[k]>0).sort((a,b)=>d.tipo_qty[b]-d.tipo_qty[a]);
+  items.forEach(name=>{const o=document.createElement("option");o.value=name;o.textContent=name;sel.appendChild(o);});
+  sel.value="";
+  document.getElementById("filter-result").style.display="none";
+  destroyFilterCharts();
+}
+
+function applyFilter(){
+  const val=document.getElementById("filter-select").value;
+  if(!val){document.getElementById("filter-result").style.display="none";return;}
+  destroyFilterCharts();
+  document.getElementById("filter-result").style.display="block";
+  if(currentFilterMode==="imp") renderImpProfile(val);
+  else if(currentFilterMode==="exp") renderExpProfile(val);
+  else if(currentFilterMode==="seg") renderSegProfile(val);
+}
+
+const PROF_COLORS=["#2a78d6","#eb6834","#1baf7a","#eda100","#4a3aa7","#e34948","#e87ba4","#008300","#888780","#5f5e5a"];
+
+function profKpi(label,value,sub,blue){
+  return `<div class="kpi"><div class="kpi-label">${label}</div><div class="kpi-value${blue?" blue":""}">${value}</div><div class="kpi-sub">${sub}</div></div>`;
+}
+
+function renderImpProfile(name){
+  const yr=getActiveYear();
+  const d=ALL_DATA[String(yr)];
+  const prof=d.imp_profiles[name];if(!prof)return;
+  const total=d.total_qty;
+  const share=(prof.total_qty/total*100).toFixed(1);
+  const avg=prof.total_cif/prof.total_qty;
+  const rank=d.top_imp.findIndex(r=>r[0]===name)+1;
+  document.getElementById("prof-kpis").innerHTML=
+    profKpi("Importador","","")+ // placeholder overwrite below
+    profKpi("Total importado",fmt(prof.total_qty)+" uds","en "+yr,false)+
+    profKpi("Market share",share+"%","posicion #"+rank,true)+
+    profKpi("Precio prom. CIF","$"+avg.toFixed(2)+"/ud","valor total: "+fmtK(prof.total_cif),false);
+  document.getElementById("prof-kpis").innerHTML=
+    `<div class="kpi" style="grid-column:1/-1"><div class="kpi-label">Importador analizado</div><div style="font-size:18px;font-weight:700;color:#2a78d6;margin-top:4px">${name}</div></div>`+
+    profKpi("Total importado",fmt(prof.total_qty)+" uds","en "+yr+(d.partial?" ("+d.partial_label+")":""),false)+
+    profKpi("Market share",share+"%","posicion #"+rank+" en el mercado",true)+
+    profKpi("Precio prom. CIF","$"+avg.toFixed(2)+"/ud","CIF total: "+fmtK(prof.total_cif),false);
+  // Bar chart — top suppliers
+  document.getElementById("prof-bar-label").textContent="Principales proveedores (exportadores)";
+  const supData=prof.top_exp.slice(0,10);
+  rcf("profBarChart");
+  filterCharts.bar=new Chart(document.getElementById("profBarChart"),{type:"bar",data:{labels:supData.map(r=>r[0]),datasets:[{label:"Unidades",data:supData.map(r=>r[1]),backgroundColor:PROF_COLORS.slice(0,supData.length),borderWidth:0,borderRadius:{topRight:4,bottomRight:4},borderSkipped:"left"}]},options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${fmt(ctx.parsed.x)} uds ($${supData[ctx.dataIndex][2]>0?(supData[ctx.dataIndex][2]/supData[ctx.dataIndex][1]).toFixed(2):0}/ud)`}}},scales:{x:{grid:{color:"#e1e0d9"},ticks:{color:"#888780",font:{size:10},callback:v=>(v/1000).toFixed(0)+"k"}},y:{grid:{display:false},ticks:{color:"#52514e",font:{size:10}}}}}});
+  // Donut — segments
+  const segKeys=Object.keys(prof.seg).sort((a,b)=>prof.seg[b][0]-prof.seg[a][0]);
+  rcf("profDonutChart");
+  filterCharts.donut=new Chart(document.getElementById("profDonutChart"),{type:"doughnut",data:{labels:segKeys,datasets:[{data:segKeys.map(k=>prof.seg[k][0]),backgroundColor:segKeys.map(k=>getTipoColor(k)),borderWidth:2,borderColor:"#fff"}]},options:{responsive:true,maintainAspectRatio:false,cutout:"50%",plugins:{legend:{display:true,position:"bottom",labels:{font:{size:9},boxWidth:10}},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${fmt(ctx.parsed)} uds (${(ctx.parsed/prof.total_qty*100).toFixed(1)}%)`}}}}});
+  // Line chart — monthly
+  rcf("profLineChart");
+  filterCharts.line=new Chart(document.getElementById("profLineChart"),{type:"line",data:{labels:MONTHS,datasets:[{label:name,data:prof.monthly,borderColor:"#2a78d6",backgroundColor:"#2a78d618",borderWidth:2.5,pointRadius:4,tension:0.35,fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${fmt(ctx.parsed.y)} uds`}}},scales:{x:{grid:{display:false},ticks:{color:"#888780",font:{size:10}}},y:{grid:{color:"#e1e0d9"},ticks:{color:"#888780",font:{size:10},callback:v=>v>=1000?(v/1000).toFixed(0)+"k":v}}}}});
+  // Table
+  document.getElementById("prof-thead").innerHTML="<tr><th>#</th><th>Proveedor / Exportador</th><th style='text-align:right'>Unidades</th><th style='text-align:right'>% del total</th><th style='text-align:right'>$/ud CIF</th></tr>";
+  const tb=document.getElementById("prof-tbody");tb.innerHTML="";
+  supData.forEach((r,i)=>{const avg2=r[1]>0?r[2]/r[1]:0;const tr=document.createElement("tr");tr.innerHTML=`<td style="color:#888780">${i+1}</td><td style="font-size:11px"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${PROF_COLORS[i]};margin-right:5px;vertical-align:middle"></span>${r[0]}</td><td style="text-align:right;font-variant-numeric:tabular-nums">${fmt(r[1])}</td><td style="text-align:right">${(r[1]/prof.total_qty*100).toFixed(1)}%</td><td style="text-align:right;font-weight:600">$${avg2.toFixed(2)}</td>`;tb.appendChild(tr);});
+}
+
+function renderExpProfile(name){
+  const yr=getActiveYear();
+  const d=ALL_DATA[String(yr)];
+  const prof=d.exp_profiles[name];if(!prof)return;
+  const avg=prof.total_cif/prof.total_qty;
+  const rank=d.top_exp.findIndex(r=>r[0]===name)+1;
+  document.getElementById("prof-kpis").innerHTML=
+    `<div class="kpi" style="grid-column:1/-1"><div class="kpi-label">Exportador analizado</div><div style="font-size:18px;font-weight:700;color:#eb6834;margin-top:4px">${name}</div></div>`+
+    profKpi("Total exportado a Panama",fmt(prof.total_qty)+" uds","en "+yr+(d.partial?" ("+d.partial_label+")":""),false)+
+    profKpi("Ranking exportador","#"+rank,"por volumen de unidades",true)+
+    profKpi("Precio prom. CIF","$"+avg.toFixed(2)+"/ud","CIF total: "+fmtK(prof.total_cif),false);
+  document.getElementById("prof-bar-label").textContent="Principales compradores en Panama (importadores)";
+  const impData=prof.top_imp.slice(0,10);
+  rcf("profBarChart");
+  filterCharts.bar=new Chart(document.getElementById("profBarChart"),{type:"bar",data:{labels:impData.map(r=>r[0]),datasets:[{label:"Unidades",data:impData.map(r=>r[1]),backgroundColor:impData.map(r=>getColor(r[0])),borderWidth:0,borderRadius:{topRight:4,bottomRight:4},borderSkipped:"left"}]},options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${fmt(ctx.parsed.x)} uds`}}},scales:{x:{grid:{color:"#e1e0d9"},ticks:{color:"#888780",font:{size:10},callback:v=>(v/1000).toFixed(0)+"k"}},y:{grid:{display:false},ticks:{color:"#52514e",font:{size:10}}}}}});
+  const segKeys=Object.keys(prof.seg).sort((a,b)=>prof.seg[b][0]-prof.seg[a][0]);
+  rcf("profDonutChart");
+  filterCharts.donut=new Chart(document.getElementById("profDonutChart"),{type:"doughnut",data:{labels:segKeys,datasets:[{data:segKeys.map(k=>prof.seg[k][0]),backgroundColor:segKeys.map(k=>getTipoColor(k)),borderWidth:2,borderColor:"#fff"}]},options:{responsive:true,maintainAspectRatio:false,cutout:"50%",plugins:{legend:{display:true,position:"bottom",labels:{font:{size:9},boxWidth:10}},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${fmt(ctx.parsed)} uds (${(ctx.parsed/prof.total_qty*100).toFixed(1)}%)`}}}}});
+  rcf("profLineChart");
+  filterCharts.line=new Chart(document.getElementById("profLineChart"),{type:"line",data:{labels:MONTHS,datasets:[{label:name,data:prof.monthly,borderColor:"#eb6834",backgroundColor:"#eb683418",borderWidth:2.5,pointRadius:4,tension:0.35,fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${fmt(ctx.parsed.y)} uds`}}},scales:{x:{grid:{display:false},ticks:{color:"#888780",font:{size:10}}},y:{grid:{color:"#e1e0d9"},ticks:{color:"#888780",font:{size:10},callback:v=>v>=1000?(v/1000).toFixed(0)+"k":v}}}}});
+  document.getElementById("prof-thead").innerHTML="<tr><th>#</th><th>Importador en Panama</th><th style='text-align:right'>Unidades</th><th style='text-align:right'>%</th><th style='text-align:right'>$/ud CIF</th></tr>";
+  const tb=document.getElementById("prof-tbody");tb.innerHTML="";
+  impData.forEach((r,i)=>{const avg2=r[1]>0?r[2]/r[1]:0;const ll=isLL(r[0]);const tr=document.createElement("tr");if(ll)tr.className="ling-long";tr.innerHTML=`<td style="color:#888780">${i+1}</td><td style="font-size:11px"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${getColor(r[0])};margin-right:5px;vertical-align:middle"></span>${r[0]}${ll?" &#9733;":""}</td><td style="text-align:right;font-variant-numeric:tabular-nums">${fmt(r[1])}</td><td style="text-align:right">${(r[1]/prof.total_qty*100).toFixed(1)}%</td><td style="text-align:right;font-weight:600">$${avg2.toFixed(2)}</td>`;tb.appendChild(tr);});
+}
+
+function renderSegProfile(seg){
+  const yr=getActiveYear();
+  const d=ALL_DATA[String(yr)];
+  const qty=d.tipo_qty[seg]||0,cif=d.tipo_cif[seg]||0;
+  const totalMkt=d.total_qty;
+  const avg=qty>0?cif/qty:0;
+  const llSeg=d.seg_ll[seg]||{qty:0,cif:0};
+  const llShare=qty>0?(llSeg.qty/qty*100).toFixed(1):0;
+  document.getElementById("prof-kpis").innerHTML=
+    `<div class="kpi" style="grid-column:1/-1"><div class="kpi-label">Sub-partida analizada</div><div style="font-size:18px;font-weight:700;margin-top:4px" ${`style="color:${getTipoColor(seg)}"`}>${seg}</div></div>`+
+    profKpi("Mercado total segmento",fmt(qty)+" uds","${(qty/totalMkt*100).toFixed(1)}% del mercado",false)+
+    profKpi("Valor CIF total",fmtK(cif),"precio prom: $"+avg.toFixed(2)+"/ud",false)+
+    profKpi("Share Ling Long",llShare+"%",fmt(llSeg.qty)+" uds",true);
+  // Replace macro with real values
+  const share2=(qty/totalMkt*100).toFixed(1);
+  document.getElementById("prof-kpis").innerHTML=
+    `<div class="kpi" style="grid-column:1/-1"><div class="kpi-label">Sub-partida analizada</div><div style="font-size:18px;font-weight:700;color:${getTipoColor(seg)||"#0b0b0b"};margin-top:4px">${seg}</div></div>`+
+    profKpi("Mercado total segmento",fmt(qty)+" uds",share2+"% del total de neumaticos",false)+
+    profKpi("Valor CIF total",fmtK(cif),"precio prom: $"+avg.toFixed(2)+"/ud",false)+
+    profKpi("Share Ling Long",llShare+"%",fmt(llSeg.qty)+" uds",true);
+  // Top importers
+  document.getElementById("prof-bar-label").textContent="Ranking importadores en este segmento";
+  const segTopData=(d.seg_top[seg]||[]).slice(0,10);
+  rcf("profBarChart");
+  filterCharts.bar=new Chart(document.getElementById("profBarChart"),{type:"bar",data:{labels:segTopData.map(r=>r[0]),datasets:[{label:"Unidades",data:segTopData.map(r=>r[1]),backgroundColor:segTopData.map(r=>getColor(r[0])),borderWidth:0,borderRadius:{topRight:4,bottomRight:4},borderSkipped:"left"}]},options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${fmt(ctx.parsed.x)} uds`}}},scales:{x:{grid:{color:"#e1e0d9"},ticks:{color:"#888780",font:{size:10},callback:v=>(v/1000).toFixed(0)+"k"}},y:{grid:{display:false},ticks:{color:"#52514e",font:{size:10}}}}}});
+  // Top exporters in segment
+  const segExpData=(d.seg_exp[seg]||[]).slice(0,10);
+  rcf("profDonutChart");
+  filterCharts.donut=new Chart(document.getElementById("profDonutChart"),{type:"doughnut",data:{labels:segExpData.map(r=>r[0]),datasets:[{data:segExpData.map(r=>r[1]),backgroundColor:PROF_COLORS.slice(0,segExpData.length),borderWidth:2,borderColor:"#fff"}]},options:{responsive:true,maintainAspectRatio:false,cutout:"50%",plugins:{legend:{display:true,position:"bottom",labels:{font:{size:9},boxWidth:10}},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${fmt(ctx.parsed)} uds`}}}}});
+  // Monthly from mkt (approximate from all importers in seg_top)
+  rcf("profLineChart");
+  filterCharts.line=new Chart(document.getElementById("profLineChart"),{type:"line",data:{labels:MONTHS,datasets:[{label:"Mercado "+seg,data:MONTHS.map((_,m)=>{const mQty=d.monthly_mkt_qty[m]||0;return 0;}),borderColor:getTipoColor(seg)||"#888780",backgroundColor:"#88878018",borderWidth:2,pointRadius:3,tension:0.35,fill:true,spanGaps:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:"#888780",font:{size:10}}},y:{grid:{color:"#e1e0d9"},ticks:{color:"#888780",font:{size:10},callback:v=>v>=1000?(v/1000).toFixed(0)+"k":v}}}}});
+  document.getElementById("prof-thead").innerHTML="<tr><th>#</th><th>Importador</th><th style='text-align:right'>Unidades</th><th style='text-align:right'>% del seg.</th><th style='text-align:right'>$/ud CIF</th></tr>";
+  const tb=document.getElementById("prof-tbody");tb.innerHTML="";
+  segTopData.forEach((r,i)=>{const ll=isLL(r[0]);const avg2=r[1]>0?r[2]/r[1]:0;const tr=document.createElement("tr");if(ll)tr.className="ling-long";tr.innerHTML=`<td style="color:#888780">${i+1}</td><td style="font-size:11px"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${getColor(r[0])};margin-right:5px;vertical-align:middle"></span>${r[0]}${ll?" &#9733;":""}</td><td style="text-align:right;font-variant-numeric:tabular-nums">${fmt(r[1])}</td><td style="text-align:right">${qty>0?(r[1]/qty*100).toFixed(1):0}%</td><td style="text-align:right;font-weight:600">$${avg2.toFixed(2)}</td>`;tb.appendChild(tr);});
+}
+
+renderAll(2025);
+
+</script>
+</body>
+</html>''')
+
+HTML = ''.join(parts)
+out = "index.html"
+with open(out, 'w', encoding='utf-8') as f:
+    f.write(HTML)
+print(f"Done. {len(HTML):,} chars → {out}")
