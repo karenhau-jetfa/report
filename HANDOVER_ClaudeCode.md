@@ -132,6 +132,35 @@ Función con ~30 patrones regex. Ejemplos clave:
 
 **IMPORTANTE:** Shandong Linglong y HK Tiancheng NO se deben fusionar. SDL fue el nombre hasta ~2019–2020; HKT es la entidad actual. Son el mismo fabricante pero el cliente quiere ver la transición en los datos.
 
+### Normalización sistemática y fusión de erratas (oct 2026)
+
+Antes, un nombre sin entrada en `NAME_MAP` salía con `str(raw).title()`, así que
+`EMPRESAS MELO  S A` y `EMPRESAS MELO S A` eran dos importadores, y «Supro Mundial»
+llegó a tener 37 grafías entre los exportadores. Ahora hay tres capas, en este orden:
+
+1. **Reglas explícitas** — `NAME_MAP` (importadores) y las regex de `canon_exp()` (marcas).
+   Mandan siempre. Al principio de `canon_exp` se corrigen erratas recurrentes de marca o
+   ciudad (`SHANGDONG→SHANDONG`, `QINDAO/QUINGDAO→QINGDAO`, `HAKOOK/HANKKOOK→HANKOOK`,
+   `GOOD YEAR→GOODYEAR`, `ZHOGCE/ZHONGE→ZHONGCE`, variantes de Bridgestone y Tiancheng).
+2. **`smart_name()`** — fallback determinista: quita acentos, puntuación y espacios dobles,
+   estandariza el sufijo legal (`S A`, `S.A`, `, S.A.`, `SOCIEDAD ANONIMA` → `S.A.`;
+   `CO., LTD` → `Ltd.`…) y elimina la marca de zona libre (`Z.L.`, `ZL`, `ZONA LIBRE`).
+3. **`cluster_aliases()`** — pre-pasada sobre todos los xlsx que agrupa erratas de forma
+   conservadora: misma empresa si solo difiere **una** palabra, de ≥5 letras, con el mismo
+   arranque y similitud ≥0.85 (o si sobra una palabra genérica como INT/TRADING). Como nombre
+   del grupo elige la grafía con menos palabras «raras» (que no aparecen en ninguna otra
+   empresa) y, a igualdad, la de más volumen. Así `Transamerica` gana a `Trasamerican`
+   aunque esta tenga más unidades.
+
+Parejas parecidas que son empresas distintas van en `_NO_FUSIONAR` y nunca se juntan:
+Shandong Changfeng / Shandong Yongfeng, Quart International / TBC International,
+Shandong Linglong / HK Tiancheng.
+
+Cada extracción escribe **`data_veritrade/nombres_fusionados.txt`** (fuera del repo) con
+todos los grupos y sus volúmenes para auditarlos. Si una fusión es incorrecta: añadir la
+pareja a `_NO_FUSIONAR`; si falta una, añadirla a `NAME_MAP` o a `canon_exp()`.
+Las fusiones no cambian ningún total: solo redistribuyen volumen entre nombres.
+
 ### Filtro de datos espurios — `is_spurious()`
 Excluye registros:
 - Nombre `"BAC TICKETS AWB"` — registros de pago, no mercancía

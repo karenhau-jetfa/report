@@ -26,6 +26,19 @@ FILES = {
 PARTIAL_YEARS = {2026: 'ene–ago 2026'}
 
 NAME_MAP = {
+    # Erratas detectadas en oct 2026 (misma empresa, distinta grafia en aduana)
+    'COPORACION COSTA ATLANTICA': 'Corporacion Costa Atlantica',
+    'CORPORACION COSTA ATLANTICA': 'Corporacion Costa Atlantica',
+    'AUTO RESPUESTO UNIVERSAL': 'Auto Repuesto Universal',
+    '*AUTO RESPUESTO UNIVERSAL*': 'Auto Repuesto Universal',
+    'AUTO REPUESTO UNIVERSAL': 'Auto Repuesto Universal',
+    'LLANTERIA BETHANIA': 'Llanteria Betania',
+    'LLANTERIA BETANIA': 'Llanteria Betania',
+    'GRUPO N/P': 'Grupo N&P S.A.',
+    'GRUPO N&P S.A.': 'Grupo N&P S.A.',
+    'N&P, S.A.': 'Grupo N&P S.A.',
+    'COOPERATIVA DE SERVICIOS DE TRANSPORTE JOAQUINA DE TORRIJOS': 'Coop. de Transporte Joaquina H. de Torrijos R.L.',
+    'COOPERATIVA  DE SERVICIOS DE TRANSPORTE JOAQUINA H  DE TORRIJOS RL': 'Coop. de Transporte Joaquina H. de Torrijos R.L.',
     'AUTO CENTRO S A': 'Auto Centro S.A.',
     'DISTRIBUIDORA LING LONG  S A': 'Ling Long',
     'DISTRIBUIDORA LING LONG S A': 'Ling Long',
@@ -111,6 +124,14 @@ def canon_exp(name):
     """Comprehensive exporter normalization with regex to catch all typo variants."""
     n = str(name or '').strip()
     nu = n.upper()
+    # Erratas recurrentes de marcas/ciudades, corregidas antes de aplicar las reglas
+    nu = re.sub(r'\bSHANGDONG\b|\bSHANDON\b', 'SHANDONG', nu)
+    nu = re.sub(r'\bQU?IN(?:G)?DAO\b', 'QINGDAO', nu)                 # QINDAO, QUINGDAO
+    nu = re.sub(r'HA[NM]?K+OOK|HAKOOK', 'HANKOOK', nu)                  # HANKKOOK, HAKOOK, HAMKOOK
+    nu = re.sub(r'GOOD\s*YEAR|GOOYEAR', 'GOODYEAR', nu)
+    nu = re.sub(r'\b(BRIDGESTONE|BRIGESTONE|BRIDGETONE|BRISGESTONE)S?\b', 'BRIDGESTONE', nu)
+    nu = re.sub(r'\bZHO[NG]*[CG]+E\b', 'ZHONGCE', nu)                 # ZHONCGE, ZHOGCE, ZHONGE
+    nu = re.sub(r'\bTIAN[A-Z ]{0,3}CHENG\b|TIANCFHENG|TIANCHE NG', 'TIANCHENG', nu)
     # Erratas y variantes de razon social detectadas por similitud sobre el dataset
     # 2019-2026. Ojo: Shandong Linglong y HK Tiancheng NO se fusionan a proposito.
     if re.search(r'DIS[RT]{2}IBUIDORA RALI|DIST\.? RALI', nu):
@@ -282,7 +303,179 @@ def canon_exp(name):
     # Goodyear
     if re.search(r'GOODYEAR', nu):
         return 'Goodyear'
-    return n.title() if n else 'Desconocido'
+    base = smart_name(nu) if n else 'Desconocido'   # nu lleva las erratas ya corregidas
+    return ALIAS_EXP.get(base, base)
+
+
+# ---------------------------------------------------------------------------
+# Normalizacion sistematica de nombres (oct 2026)
+# El fallback anterior era str(raw).title(): "EMPRESAS MELO  S A" y "EMPRESAS MELO S A"
+# salian como dos empresas, y "Supro Mundial" llego a tener 37 grafias. Aqui se
+# estandarizan espacios, puntuacion, acentos, sufijo legal y la marca "Z.L.", y
+# despues se agrupan erratas de forma conservadora (una sola palabra distinta,
+# muy parecida y con el mismo arranque) eligiendo la grafia de mayor volumen.
+# NAME_MAP y las reglas regex de canon_exp siguen mandando por encima de esto.
+# ---------------------------------------------------------------------------
+import unicodedata, difflib
+
+_LEGAL = [
+    (r"\bSOCIEDAD\s+ANONIMA\b", "SA"),
+    (r"\bS\s*\.?\s*A\s*\.?\s*S\b", "SAS"),
+    (r"\bS\s*\.?\s*A\s*\.?(?=\s|$|,)", "SA"),
+    (r"\bS\s*\.?\s*DE\s*R\s*\.?\s*L\b(\s*DE\s*C\s*\.?\s*V\b)?", "SRL"),
+    (r"\bLTDA\b", "LTDA"), (r"\bLIMITED\b|\bLTD\b", "LTD"),
+    (r"\bINCORPORATED\b|\bINC\b", "INC"), (r"\bCORPORATION\b|\bCORP\b", "CORP"),
+    (r"\bCOMPANY\b|\bCO\b", "CO"), (r"\bCOMPANIA\b|\bCIA\b", "CIA"),
+]
+_PRETTY = {"SA": "S.A.", "SAS": "S.A.S.", "SRL": "S. de R.L.", "LTDA": "Ltda.", "LTD": "Ltd.",
+           "INC": "Inc.", "CORP": "Corp.", "CO": "Co.", "CIA": "Cia."}
+_SMALL = {"DE", "DEL", "LA", "LAS", "EL", "LOS", "Y", "E", "&", "AND", "OF", "THE"}
+_ZL = r"\b(Z\s*\.?\s*L\s*\.?|ZONA\s+LIBRE(\s+DE\s+COLON)?|ZLC)\b"
+_GENERIC = {"TYRE", "TYRES", "TIRE", "TIRES", "RUBBER", "GROUP", "INDUSTRIAL", "INDUSTRY", "INDUSTRIES",
+            "INTERNATIONAL", "INTERNACIONAL", "TRADING", "TRADE", "IMPORT", "EXPORT", "IMPORTADORA",
+            "EXPORTADORA", "IMPORTACIONES", "EXPORTACIONES", "SERVICIOS", "TECHNOLOGY", "TECNOLOGY",
+            "INVESTMENT", "INT", "INTL", "DISTRIBUIDORA", "COMERCIAL", "COMERCIALIZADORA", "GRUPO"}
+# Parejas que se parecen pero son empresas distintas: nunca se fusionan.
+_NO_FUSIONAR = {frozenset(p) for p in [
+    ("SHANDONGCHANGFENGTYRES", "SHANDONGYONGFENGTYRES"),
+    ("QUARTINTERNATIONAL", "TBCINTERNATIONAL"),
+    ("SHANDONGLINGLONG", "HKTIANCHENGINV"),
+]}
+
+def _deacc(t):
+    t = unicodedata.normalize("NFD", t)
+    return "".join(c for c in t if unicodedata.category(c) != "Mn")
+
+def smart_parts(raw):
+    """-> (clave_identidad, nucleo_en_mayusculas, sufijo_legal)"""
+    t = _deacc(str(raw or "")).upper().replace("*", " ")
+    t = re.sub(r"[,\.;:/()\"'\-]", " ", t)
+    t = re.sub(r"&", " & ", t)
+    t = re.sub(_ZL, " ", t)
+    t = re.sub(r"\s+", " ", t).strip()
+    suf = ""
+    for pat, tag in _LEGAL:
+        if re.search(pat, t):
+            t = re.sub(pat, " ", t)
+            if not suf: suf = tag
+    t = re.sub(r"\s+", " ", t).strip()
+    return re.sub(r"[^A-Z0-9&]", "", t), t, suf
+
+def smart_name(raw):
+    key, core, suf = smart_parts(raw)
+    if not key: return "Desconocido"
+    out = []
+    for x in core.split():
+        if x in _SMALL: out.append(x.lower())
+        elif len(x) <= 3 and not re.search(r"[AEIOU]", x): out.append(x)      # GS, DK, TBC, HK
+        else: out.append(x.title())
+    out[0] = out[0][:1].upper() + out[0][1:]
+    name = re.sub(r"\b(\w)\s*&\s*(\w)\b", r"\1&\2", " ".join(out))
+    return (name + (" " + _PRETTY[suf] if suf else "")).strip()
+
+def _typo_equal(core_a, core_b):
+    """Misma empresa salvo UNA palabra con errata, o una palabra generica de mas."""
+    ta, tb = core_a.split(), core_b.split()
+    if ta == tb: return True
+    if abs(len(ta) - len(tb)) == 1:
+        la, lb = (ta, tb) if len(ta) > len(tb) else (tb, ta)
+        return any(la[i] in _GENERIC and la[:i] + la[i+1:] == lb for i in range(len(la)))
+    if len(ta) != len(tb): return False
+    diff = [(x, y) for x, y in zip(ta, tb) if x != y]
+    if len(diff) != 1: return False
+    x, y = diff[0]
+    if min(len(x), len(y)) < 5 or x[:2] != y[:2]: return False
+    return difflib.SequenceMatcher(None, x, y).ratio() >= 0.85
+
+def cluster_aliases(volumes):
+    """volumes: {nombre_canonico: qty} -> {nombre: nombre_lider}; solo nombres que cambian."""
+    ids = {}
+    for name, q in volumes.items():
+        key, core, suf = smart_parts(name)
+        if not key: continue
+        d = ids.setdefault(key, {"names": {}, "core": core, "vol": 0.0})
+        d["names"][name] = d["names"].get(name, 0) + q; d["vol"] += q
+    order = sorted(ids.items(), key=lambda kv: -kv[1]["vol"])
+    leaders = []     # (key, core, nombre_lider)
+    alias = {}
+    # Frecuencia de cada palabra entre identidades distintas: una palabra que solo
+    # existe en una identidad ("TRASAMERICAN", "FREIGTH") huele a errata aunque
+    # tenga mas volumen que la grafia correcta ("TRANSAMERICA", "FREIGHT").
+    from collections import Counter
+    df = Counter(t for d in ids.values() for t in set(d["core"].split()))
+    import math
+    def normalidad(name):
+        """Suma de log-frecuencia de las palabras no genericas: "FREIGHT" (frecuente)
+        puntua mas que "FREIGTH" (rara aunque se repita en varias erratas)."""
+        _, core, _ = smart_parts(name)
+        # Las genericas SI puntuan: excluirlas daba ventaja a la errata (INTERNATIONA
+        # sumaba algo mientras INTERNATIONAL, generica, sumaba cero).
+        return sum(math.log(df.get(t, 1)) for t in core.split() if len(t) >= 4)
+    grupos = {}          # key_lider -> {nombre: volumen}
+    for key, d in order:
+        target = None
+        for lk, lcore in leaders:
+            if abs(len(lk) - len(key)) > 3 or lk[0] != key[0]: continue
+            if frozenset((lk, key)) in _NO_FUSIONAR: continue
+            if _typo_equal(d["core"], lcore): target = lk; break
+        if target is None:
+            leaders.append((key, d["core"])); target = key
+        grupos.setdefault(target, {}).update(d["names"])
+    for members in grupos.values():
+        if len(members) < 2: continue
+        # mejor nombre: palabras mas frecuentes en el corpus; a igualdad, mas volumen
+        best = max(members, key=lambda n: (round(normalidad(n), 6), members[n]))
+        for n in members:
+            if n != best: alias[n] = best
+    return alias
+
+ALIAS_IMP, ALIAS_EXP = {}, {}
+
+def build_alias_maps():
+    """Pre-pasada sobre todos los xlsx: volumen por nombre base, y agrupacion global."""
+    vol_imp, vol_exp = {}, {}
+    for year, paths in sorted(FILES.items()):
+        for path in ([paths] if isinstance(paths, str) else paths):
+            wb = openpyxl.load_workbook(path, read_only=True, data_only=True); ws = wb.active
+            hdr, cols = None, {}
+            for i, row in enumerate(ws.iter_rows(values_only=True)):
+                rs = [str(c).upper() if c else "" for c in row]
+                if any("QTY" in c for c in rs) and any("IMPORT" in c for c in rs):
+                    hdr = i + 1
+                    for j, h in enumerate(rs):
+                        if "QTY" in h and "qty" not in cols: cols["qty"] = j
+                        if ("IMPORT" in h or "CONSIG" in h) and "imp" not in cols: cols["imp"] = j
+                        if "CIF" in h and "cif" not in cols: cols["cif"] = j
+                        if ("EMBARCADOR" in h or "EXPORTADOR" in h) and "exp" not in cols: cols["exp"] = j
+                        if "DESCRIP" in h and "COMERCIAL" in h and "desc" not in cols: cols["desc"] = j
+                    break
+            for row in ws.iter_rows(min_row=hdr + 1, values_only=True):
+                if not row or not row[0]: continue
+                sp = str(row[0] or "").replace(".", "").replace(" ", "")
+                if not sp.startswith("4011"): continue
+                try:
+                    qty = float(str(row[cols.get("qty", 0)] or "").replace(",", "")) or 0
+                    cif = float(str(row[cols.get("cif", 0)] or "").replace(",", "")) or 0
+                except Exception: continue
+                if qty <= 0 or is_spurious(sp, qty, cif, row[cols.get("imp", 0)], row[cols.get("desc", 0)]): continue
+                bi = normalize_name(row[cols.get("imp", 0)]); be = canon_exp(str(row[cols.get("exp", 0)] or "").strip())
+                vol_imp[bi] = vol_imp.get(bi, 0) + qty; vol_exp[be] = vol_exp.get(be, 0) + qty
+            wb.close()
+    return cluster_aliases(vol_imp), cluster_aliases(vol_exp), vol_imp, vol_exp
+
+def write_alias_report(path, ai, ae, vi, ve):
+    def block(title, alias, vol):
+        grupos = {}
+        for n, t in alias.items(): grupos.setdefault(t, []).append(n)
+        lines = ["== %s: %d nombres fusionados en %d identidades ==" % (title, len(alias), len(grupos))]
+        for t, ms in sorted(grupos.items(), key=lambda kv: -(vol.get(kv[0], 0) + sum(vol.get(m, 0) for m in kv[1]))):
+            tot = vol.get(t, 0) + sum(vol.get(m, 0) for m in ms)
+            lines.append("%10s  %s" % (format(int(tot), ","), t))
+            for m in sorted(ms, key=lambda m: -vol.get(m, 0)):
+                lines.append("              <- %s (%s)" % (m, format(int(vol.get(m, 0)), ",")))
+        return lines
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("\n".join(block("IMPORTADORES", ai, vi) + [""] + block("EXPORTADORES / MARCAS", ae, ve)) + "\n")
 
 def normalize_name(raw):
     key = re.sub(r'\s+', ' ', str(raw or '').strip().upper())
@@ -290,7 +483,8 @@ def normalize_name(raw):
     for k, v in NAME_MAP.items():
         if key.replace(',','').replace('.','') == k.replace(',','').replace('.',''):
             return v
-    return str(raw or '').strip().title()
+    base = smart_name(raw)
+    return ALIAS_IMP.get(base, base)
 
 def normalize_country(raw):
     key = str(raw or '').strip().upper()
@@ -322,6 +516,13 @@ def is_spurious(sp_clean, qty, cif, imp_raw, desc_raw):
     return False
 
 results = {}
+
+print("Pre-pasada: agrupando variantes de nombre en todos los archivos...")
+ALIAS_IMP, ALIAS_EXP, _vi, _ve = build_alias_maps()
+_rep = os.path.join(DATA_DIR, 'nombres_fusionados.txt')
+write_alias_report(_rep, ALIAS_IMP, ALIAS_EXP, _vi, _ve)
+print("  importadores: %d nombres -> %d fusionados | exportadores: %d nombres -> %d fusionados | informe: %s"
+      % (len(_vi), len(ALIAS_IMP), len(_ve), len(ALIAS_EXP), _rep))
 
 for year, paths in sorted(FILES.items()):
     if isinstance(paths, str): paths = [paths]
