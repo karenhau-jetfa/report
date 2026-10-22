@@ -3,22 +3,27 @@ extract_v8.py — Full re-extraction with cross-tab profiles for filters
 Outputs years_data_v8.json with imp_profiles, exp_profiles, seg_exp added
 """
 
-import openpyxl, json, re
+import openpyxl, json, re, os
 from collections import defaultdict
 from datetime import datetime
 
+# Los xlsx de Veritrade viven en data_veritrade/ (ignorado por git: son datos
+# crudos de aduana, confidenciales). Un anio puede venir en varios archivos.
+DATA_DIR = os.environ.get('VERITRADE_DIR',
+           os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data_veritrade'))
+def _f(*names): return [os.path.join(DATA_DIR, n) for n in names]
 FILES = {
-    2025: "/sessions/gracious-lucid-brahmagupta/mnt/uploads/Veritrade_KAREN.HAU@JETFAINT.NET_PA_I_20260716153510.xlsx",
-    2024: "/sessions/gracious-lucid-brahmagupta/mnt/uploads/Veritrade_KAREN.HAU@JETFAINT.NET_PA_I_20260717072537.xlsx",
-    2023: "/sessions/gracious-lucid-brahmagupta/mnt/uploads/Veritrade_KAREN.HAU@JETFAINT.NET_PA_I_20260717073058.xlsx",
-    2022: "/sessions/gracious-lucid-brahmagupta/mnt/uploads/Veritrade_KAREN.HAU@JETFAINT.NET_PA_I_20260717073141.xlsx",
-    2021: "/sessions/gracious-lucid-brahmagupta/mnt/uploads/Veritrade_KAREN.HAU@JETFAINT.NET_PA_I_20260717084952.xlsx",
-    2020: "/sessions/gracious-lucid-brahmagupta/mnt/uploads/Veritrade_KAREN.HAU@JETFAINT.NET_PA_I_20260717085014.xlsx",
-    2019: "/sessions/gracious-lucid-brahmagupta/mnt/uploads/Veritrade_KAREN.HAU@JETFAINT.NET_PA_I_20260717085036.xlsx",
-    2026: "/sessions/gracious-lucid-brahmagupta/mnt/uploads/Veritrade_KAREN.HAU@JETFAINT.NET_PA_I_20260717085232.xlsx",
+    2019: _f('Veritrade_2019.xlsx'),
+    2020: _f('Veritrade_2020.xlsx'),
+    2021: _f('Veritrade_2021.xlsx'),
+    2022: _f('Veritrade_2022.xlsx'),
+    2023: _f('Veritrade_2023.xlsx'),
+    2024: _f('Veritrade_2024.xlsx'),
+    2025: _f('Veritrade_2025.xlsx'),
+    2026: _f('Veritrade_202605.xlsx', 'Veritrade_20260608.xlsx'),  # ene-may + jun-ago
 }
 
-PARTIAL_YEARS = {2026: 'ene–may 2026'}
+PARTIAL_YEARS = {2026: 'ene–ago 2026'}
 
 NAME_MAP = {
     'AUTO CENTRO S A': 'Auto Centro S.A.',
@@ -318,40 +323,9 @@ def is_spurious(sp_clean, qty, cif, imp_raw, desc_raw):
 
 results = {}
 
-for year, path in sorted(FILES.items()):
-    print(f"\n{'='*50} {year}")
-    wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
-    ws = wb.active
-
-    hdr_row, cols = None, {}
-    for i, row in enumerate(ws.iter_rows(values_only=True)):
-        rs = [str(c).upper() if c else '' for c in row]
-        if any('QTY' in c for c in rs) and any('IMPORT' in c for c in rs):
-            hdr_row = i + 1
-            for j, h in enumerate(rs):
-                if 'QTY' in h and 'qty' not in cols: cols['qty'] = j
-                if ('IMPORT' in h or 'CONSIG' in h) and 'imp' not in cols: cols['imp'] = j
-                if ('SUBPART' in h or ('PARTIDA' in h and 'ARANCELARIA' in h)) and 'sp' not in cols: cols['sp'] = j
-                if 'CIF TOT' in h and 'cif' not in cols: cols['cif'] = j
-                if 'CIF' in h and 'cif' not in cols: cols['cif'] = j
-                if ('EMBARCADOR' in h or 'EXPORTADOR' in h) and 'exp' not in cols: cols['exp'] = j
-                if 'PAIS' in h and 'ORIGEN' in h and 'country' not in cols: cols['country'] = j
-                if 'FECHA' in h and 'fecha' not in cols: cols['fecha'] = j
-                if 'DESCRIP' in h and 'COMERCIAL' in h and 'desc' not in cols: cols['desc'] = j
-            break
-
-    def parse_month(row):
-        fv = row[cols.get('fecha', 0)]
-        try:
-            if isinstance(fv, (int, float)):
-                from openpyxl.utils.datetime import from_excel
-                return from_excel(fv).month - 1
-        except: pass
-        try: return datetime.strptime(str(fv)[:10], '%d/%m/%Y').month - 1
-        except: pass
-        try: return datetime.strptime(str(fv)[:10], '%Y-%m-%d').month - 1
-        except: return None
-
+for year, paths in sorted(FILES.items()):
+    if isinstance(paths, str): paths = [paths]
+    print(f"\n{'='*50} {year}  ({len(paths)} archivo(s))")
     LL = 'Ling Long'
     OPP_SEGS = {'Turismo / Racing','Autobús / Camión','Montacargas','Construcción / Industrial','Agrícola / Forestal','Motocicletas'}
 
@@ -384,61 +358,96 @@ for year, path in sorted(FILES.items()):
     exp_seg = defaultdict(lambda: defaultdict(lambda: [0.0, 0.0]))
     exp_monthly_d = defaultdict(lambda: [0.0]*12)
     seg_exp_d = defaultdict(lambda: defaultdict(lambda: [0.0, 0.0]))
+    seg_monthly_d = defaultdict(lambda: [0.0]*12)   # NUEVO: mensual por segmento
 
-    for row in ws.iter_rows(min_row=hdr_row+1, values_only=True):
-        if not row or not row[0]: continue
-        sp = str(row[cols.get('sp',0)] or '').replace('.','').replace(' ','')
-        if not sp.startswith('4011'): continue
-        try:
-            qty = float(str(row[cols.get('qty',0)] or '').replace(',','')) or 0
-            cif = float(str(row[cols.get('cif',0)] or '').replace(',','')) or 0
-        except: qty, cif = 0, 0
-        if qty <= 0: continue
+    for path in paths:
+        wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
+        ws = wb.active
 
-        imp_raw = row[cols.get('imp',0)]
-        exp_raw = row[cols.get('exp',0)]
-        country_raw = row[cols.get('country',0)]
-        desc_raw = row[cols.get('desc',0)]
+        hdr_row, cols = None, {}
+        for i, row in enumerate(ws.iter_rows(values_only=True)):
+            rs = [str(c).upper() if c else '' for c in row]
+            if any('QTY' in c for c in rs) and any('IMPORT' in c for c in rs):
+                hdr_row = i + 1
+                for j, h in enumerate(rs):
+                    if 'QTY' in h and 'qty' not in cols: cols['qty'] = j
+                    if ('IMPORT' in h or 'CONSIG' in h) and 'imp' not in cols: cols['imp'] = j
+                    if ('SUBPART' in h or ('PARTIDA' in h and 'ARANCELARIA' in h)) and 'sp' not in cols: cols['sp'] = j
+                    if 'CIF TOT' in h and 'cif' not in cols: cols['cif'] = j
+                    if 'CIF' in h and 'cif' not in cols: cols['cif'] = j
+                    if ('EMBARCADOR' in h or 'EXPORTADOR' in h) and 'exp' not in cols: cols['exp'] = j
+                    if 'PAIS' in h and 'ORIGEN' in h and 'country' not in cols: cols['country'] = j
+                    if 'FECHA' in h and 'fecha' not in cols: cols['fecha'] = j
+                    if 'DESCRIP' in h and 'COMERCIAL' in h and 'desc' not in cols: cols['desc'] = j
+                break
 
-        if is_spurious(sp, qty, cif, imp_raw, desc_raw): continue
+        def parse_month(row):
+            fv = row[cols.get('fecha', 0)]
+            try:
+                if isinstance(fv, (int, float)):
+                    from openpyxl.utils.datetime import from_excel
+                    return from_excel(fv).month - 1
+            except: pass
+            try: return datetime.strptime(str(fv)[:10], '%d/%m/%Y').month - 1
+            except: pass
+            try: return datetime.strptime(str(fv)[:10], '%Y-%m-%d').month - 1
+            except: return None
 
-        imp = normalize_name(imp_raw)
-        exp = canon_exp(str(exp_raw or '').strip())
-        country = normalize_country(country_raw)
-        tipo = classify_tipo(sp)
-        month = parse_month(row)
+        for row in ws.iter_rows(min_row=hdr_row+1, values_only=True):
+            if not row or not row[0]: continue
+            sp = str(row[cols.get('sp',0)] or '').replace('.','').replace(' ','')
+            if not sp.startswith('4011'): continue
+            try:
+                qty = float(str(row[cols.get('qty',0)] or '').replace(',','')) or 0
+                cif = float(str(row[cols.get('cif',0)] or '').replace(',','')) or 0
+            except: qty, cif = 0, 0
+            if qty <= 0: continue
 
-        imp_qty[imp] += qty; imp_cif[imp] += cif
-        if month is not None:
-            monthly_qty[imp][month] += qty
-            monthly_mkt_qty[month] += qty
-            monthly_mkt_cif[month] += cif
-            imp_monthly_d[imp][month] += qty
-            exp_monthly_d[exp][month] += qty
-        exp_qty[exp] += qty; exp_cif[exp] += cif
-        tipo_qty[tipo] += qty; tipo_cif[tipo] += cif
-        country_qty[country] += qty
-        total_qty += qty; total_cif += cif
+            imp_raw = row[cols.get('imp',0)]
+            exp_raw = row[cols.get('exp',0)]
+            country_raw = row[cols.get('country',0)]
+            desc_raw = row[cols.get('desc',0)]
 
-        # Cross-tab
-        imp_exp[imp][exp][0] += qty; imp_exp[imp][exp][1] += cif
-        imp_seg[imp][tipo][0] += qty; imp_seg[imp][tipo][1] += cif
-        exp_imp[exp][imp][0] += qty; exp_imp[exp][imp][1] += cif
-        exp_seg[exp][tipo][0] += qty; exp_seg[exp][tipo][1] += cif
-        seg_exp_d[tipo][exp][0] += qty; seg_exp_d[tipo][exp][1] += cif
+            if is_spurious(sp, qty, cif, imp_raw, desc_raw): continue
 
-        if imp == LL:
-            ll_sub[tipo]['qty'] += qty; ll_sub[tipo]['cif'] += cif
-            if month is not None: monthly_cif_ll[month] += cif
-        if 'TIANCHENG' in str(exp_raw or '').upper():
-            hk_cli[imp]['qty'] += qty; hk_cli[imp]['cif'] += cif
-        if imp == LL:
-            ll_sup_d[exp]['qty'] += qty; ll_sup_d[exp]['cif'] += cif
-        if tipo in OPP_SEGS:
-            seg_top_raw[tipo][imp]['qty'] += qty
-            seg_top_raw[tipo][imp]['cif'] += cif
+            imp = normalize_name(imp_raw)
+            exp = canon_exp(str(exp_raw or '').strip())
+            country = normalize_country(country_raw)
+            tipo = classify_tipo(sp)
+            month = parse_month(row)
 
-    wb.close()
+            imp_qty[imp] += qty; imp_cif[imp] += cif
+            if month is not None:
+                monthly_qty[imp][month] += qty
+                monthly_mkt_qty[month] += qty
+                monthly_mkt_cif[month] += cif
+                imp_monthly_d[imp][month] += qty
+                exp_monthly_d[exp][month] += qty
+                seg_monthly_d[tipo][month] += qty
+            exp_qty[exp] += qty; exp_cif[exp] += cif
+            tipo_qty[tipo] += qty; tipo_cif[tipo] += cif
+            country_qty[country] += qty
+            total_qty += qty; total_cif += cif
+
+            # Cross-tab
+            imp_exp[imp][exp][0] += qty; imp_exp[imp][exp][1] += cif
+            imp_seg[imp][tipo][0] += qty; imp_seg[imp][tipo][1] += cif
+            exp_imp[exp][imp][0] += qty; exp_imp[exp][imp][1] += cif
+            exp_seg[exp][tipo][0] += qty; exp_seg[exp][tipo][1] += cif
+            seg_exp_d[tipo][exp][0] += qty; seg_exp_d[tipo][exp][1] += cif
+
+            if imp == LL:
+                ll_sub[tipo]['qty'] += qty; ll_sub[tipo]['cif'] += cif
+                if month is not None: monthly_cif_ll[month] += cif
+            if 'TIANCHENG' in str(exp_raw or '').upper():
+                hk_cli[imp]['qty'] += qty; hk_cli[imp]['cif'] += cif
+            if imp == LL:
+                ll_sup_d[exp]['qty'] += qty; ll_sup_d[exp]['cif'] += cif
+            if tipo in OPP_SEGS:
+                seg_top_raw[tipo][imp]['qty'] += qty
+                seg_top_raw[tipo][imp]['cif'] += cif
+
+        wb.close()
 
     top_imp = sorted(imp_qty.items(), key=lambda x: -x[1])
     ll_qty = imp_qty.get(LL, 0); ll_cif = imp_cif.get(LL, 0)
@@ -503,6 +512,7 @@ for year, path in sorted(FILES.items()):
         'imp_profiles': imp_profiles,
         'exp_profiles': exp_profiles,
         'seg_exp': seg_exp_out,
+        'seg_monthly': {k: list(v) for k, v in seg_monthly_d.items()},
     }
 
     if year in PARTIAL_YEARS:
@@ -512,11 +522,7 @@ for year, path in sorted(FILES.items()):
     results[str(year)] = yr_result
     print(f"  Total: {total_qty:,.0f} uds | LL #{ll_rank} ({ll_qty:,.0f} uds) | {len(imp_profiles)} imp profiles | {len(exp_profiles)} exp profiles")
 
-out = '/sessions/gracious-lucid-brahmagupta/mnt/outputs/years_data_v8.json'
+out = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'years_data_v8.json')
 with open(out, 'w', encoding='utf-8') as f:
     json.dump(results, f, ensure_ascii=False, indent=2)
-print(f"\nSaved → {out}")
-
-import os
-size_mb = os.path.getsize(out) / 1024 / 1024
-print(f"File size: {size_mb:.1f} MB")
+print(f"\nSaved -> {out}")

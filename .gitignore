@@ -1,2 +1,6 @@
 .DS_Store
 .claude/settings.local.json
+sage-auditoria/
+
+# Datos crudos de aduana: confidenciales, no van al repo publico
+data_veritrade/

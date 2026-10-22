@@ -17,16 +17,17 @@ Reporte de análisis competitivo de importaciones de neumáticos en Panamá (par
 |---|---|
 | `Analisis_Mercado_Neumaticos_Panama_2025.html` | Reporte final (single-file HTML, ~412 KB) |
 | `extract_v8.py` | Script de extracción de datos desde los xlsx de Veritrade |
-| `years_data_v8.json` | JSON con todos los datos (~0.7 MB, 8 años) |
+| `years_data_v8.json` | JSON con todos los datos (~0.8 MB, 2019–2026) |
+| `data_veritrade/` | Los xlsx de Veritrade, uno por año (2026 en dos: `_202605` ene–may y `_20260608` jun–ago). **Ignorado por git**: datos crudos de aduana, confidenciales. Copia maestra en Drive, carpeta `Veritrade_*`. |
 | `gen_final.py` | Script Python que genera el HTML a partir del JSON |
 
-Los scripts están en la sesión de trabajo y deben ser guardados por el usuario si se quieren reutilizar. El HTML y el JSON son los entregables principales.
+Todo vive en el repo `karenhau-jetfa/report` (menos `data_veritrade/`). Se publica con `git push`: GitHub Pages sirve `index.html`.
 
 ---
 
 ## Datos de origen (Veritrade)
 
-Archivos xlsx de aduana panameña, un archivo por año. Columnas relevantes:
+Archivos xlsx de aduana panameña. `FILES` en `extract_v8.py` mapea cada año a una **lista** de archivos, así que un año puede venir en varias descargas (2026 = ene–may + jun–ago) y se suman en los mismos acumuladores. Columnas relevantes:
 - `Importador` — empresa que importa en Panamá
 - `Embarcador / Exportador` — fábrica o trader de origen
 - `Sub Partida Arancelaria` — código HS (4011.10, 4011.20, etc.)
@@ -105,11 +106,12 @@ Archivos xlsx de aduana panameña, un archivo por año. Columnas relevantes:
     "seg_exp": {
       "Turismo / Racing": [["HK Tiancheng", qty, cif], ...],
       ...
-    }
+    },
+    "seg_monthly": {"Turismo / Racing": [12 valores qty], ...}   // nuevo oct 2026
   },
   "2026": {
     "partial": true,
-    "partial_label": "ene–may 2026",
+    "partial_label": "ene–ago 2026",
     ...
   }
 }
@@ -249,7 +251,7 @@ renderSegProfile(seg)    // usa d.seg_top[seg], d.seg_exp[seg], d.seg_ll[seg]
 
 ## Pendientes / mejoras posibles
 
-- El gráfico de línea mensual en `renderSegProfile` actualmente muestra línea plana (los datos mensuales por segmento no están en el JSON — solo están los mensuales del mercado total y de Ling Long). Para activarlo, habría que agregar `seg_monthly` al script de extracción.
-- Agregar más años conforme estén disponibles — solo actualizar `extract_v8.py` con los nuevos xlsx y re-ejecutar, luego re-ejecutar `gen_final.py`.
+- ~~Gráfico mensual por segmento plano~~ **Resuelto (oct 2026)**: `seg_monthly` sale de `extract_v8.py` y `renderSegProfile` lo usa; si faltara en un año, el gráfico se oculta con una nota en vez de pintar ceros.
+- **Para incorporar una nueva descarga de Veritrade:** 1) bajar el xlsx de Drive a `data_veritrade/`; 2) añadirlo a la lista del año en `FILES` (o crear el año) y, si el año queda incompleto, ajustar `PARTIAL_YEARS`; 3) `python3 extract_v8.py` (necesita `openpyxl`); 4) `python3 gen_final.py`; 5) commit + push. El comparativo like-for-like, el resumen y los movimientos se adaptan solos a los meses con datos.
 - El reporte no tiene buscador de texto dentro de las tablas — se podría agregar con un `<input>` y filtrado JS sobre `tbody`.
 - Las tablas de top importadores/exportadores muestran top 20; se podría hacer paginable.

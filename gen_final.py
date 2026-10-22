@@ -337,7 +337,7 @@ tbody tr.ling-long:hover td{background:#e2edfb}
     <button class="year-btn" onclick="switchYear(2023)">2023</button>
     <button class="year-btn" onclick="switchYear(2024)">2024</button>
     <button class="year-btn active" onclick="switchYear(2025)">2025</button>
-    <button class="year-btn" onclick="switchYear(2026)" style="border-style:dashed">2026 <span style="font-size:10px;font-weight:400">ene&ndash;may</span></button>
+    <button class="year-btn" onclick="switchYear(2026)" style="border-style:dashed">2026 <span class="yb-partial" style="font-size:10px;font-weight:400">parcial</span></button>
   </div>
 </header>
 <nav class="secnav" id="secnav" aria-label="Secciones del reporte"><div class="secnav-inner"><a href="#sec-resumen">Resumen</a><a href="#sec-mercado">Mercado</a><a href="#sec-importadores">Importadores</a><a href="#sec-mensual">Mensual</a><a href="#sec-exportadores">Exportadores</a><a href="#sec-precios">Precios</a><a href="#sec-segmentos">Segmentos</a><a href="#sec-origenes">Origenes</a><a href="#sec-hk">HK Tiancheng</a><a href="#sec-proveedores">Proveedores LL</a><a href="#sec-posicion">Posicion LL</a><a href="#sec-movimientos">Movimientos</a><a href="#sec-oportunidad">Oportunidad</a><a href="#sec-nomenclatura">Nomenclatura</a></div></nav>
@@ -1205,6 +1205,13 @@ function setupTableTools(){
   markSortableThs();
 }
 
+// La etiqueta del anio parcial sale de los datos, no del HTML: asi no se queda
+// en "ene-may" cuando ya hay datos hasta agosto.
+document.querySelectorAll(".year-btn").forEach(b=>{
+  const m=/switchYear\((\d{4})\)/.exec(b.getAttribute("onclick")||"");if(!m)return;
+  const d=ALL_DATA[m[1]],sp=b.querySelector(".yb-partial");
+  if(d&&d.partial&&sp)sp.textContent=(d.partial_label||"parcial").replace(/\s*\d{4}$/,"");
+});
 renderAll(2025);
 setupTableTools();
 
